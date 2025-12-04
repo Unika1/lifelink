@@ -27,14 +27,8 @@ class _SplashScreenState extends State<SplashScreen> {
             child:Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                    Image.asset("assets/images/LifeLink.png",height: 120,),
+                    Image.asset("assets/images/LifeLink.png"),
                     SizedBox(height: 16),
-                    Text(
-                    'LifeLink',style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                    ),
-                    )
                 ],
                 
             )
