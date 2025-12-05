@@ -12,15 +12,15 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController emailController=TextEditingController();
-  final TextEditingController passwordController=TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
-@override
-void dispose(){
-  emailController.dispose();
-  passwordController.dispose();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   void _handleLogin() {
     final email = emailController.text.trim();
@@ -40,6 +40,7 @@ void dispose(){
       );
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -51,6 +52,47 @@ void dispose(){
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 50),
+
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 96,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Image.asset(
+                            'assets/images/LifeLink.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'LifeLink',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.redAccent,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
                 const Text(
                   "Login",
                   style: TextStyle(
@@ -59,25 +101,25 @@ void dispose(){
                   ),
                 ),
                 const SizedBox(height: 30),
-          
+
                 MyTextformfield(
-                  labelText: "Email", 
-                  hintText: "Enter your email", 
+                  labelText: "Email",
+                  hintText: "Enter your email",
                   controller: emailController,
                 ),
                 const SizedBox(height: 20),
-          
+
                 MyTextformfield(
-                  labelText: "Password", 
-                  hintText: "Enter your password", 
+                  labelText: "Password",
+                  hintText: "Enter your password",
                   controller: passwordController,
                 ),
                 const SizedBox(height: 10),
-          
+
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: (){}, 
+                    onPressed: () {},
                     child: const Text(
                       "Forgot Password?",
                       style: TextStyle(color: Colors.redAccent),
@@ -85,23 +127,29 @@ void dispose(){
                   ),
                 ),
                 const SizedBox(height: 20),
-          
-                MyButton(
-                  text: "Login", 
-                  color: Colors.redAccent,
-                  onPressed:_handleLogin,
+
+                SizedBox(
+                  width: double.infinity,
+                  child: MyButton(
+                    text: "Login",
+                    color: Colors.redAccent,
+                    onPressed: _handleLogin,
+                  ),
                 ),
                 const SizedBox(height: 25),
-                Row(
-                  children: const[
+
+                const Row(
+                  children: [
                     Expanded(child: Divider()),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text("OR"),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text("OR"),
                     ),
                     Expanded(child: Divider()),
                   ],
                 ),
                 const SizedBox(height: 20),
+
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
@@ -113,14 +161,19 @@ void dispose(){
                     ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 16),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text("Don't have an account? "),
                     GestureDetector(
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_)=> const RegisterScreen()),
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
                         );
                       },
                       child: const Text(
@@ -132,10 +185,10 @@ void dispose(){
                       ),
                     ),
                   ],
-                ), 
-                const SizedBox(height:20),             
+                ),
+                const SizedBox(height: 20),
               ],
-            )
+            ),
           ),
         ),
       ),
