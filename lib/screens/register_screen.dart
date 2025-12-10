@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lifelink/common/my_snackbar.dart';
-import 'package:lifelink/screens/home_screen.dart';
+import 'package:lifelink/screens/dashboard_screen.dart';
 import 'package:lifelink/screens/login_screen.dart';
 import 'package:lifelink/widgets/my_button.dart';
 import 'package:lifelink/widgets/my_textformfield.dart';
@@ -45,7 +45,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
       );
     }
   }
