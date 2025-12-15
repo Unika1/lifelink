@@ -26,18 +26,30 @@ class _DashboardScreen extends State<DashboardScreen> {
       body: lstBottomScreen[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        items: const[
+        items:[
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+            icon:Image.asset(
+              'assets/icons/home.png',
+              width: 24,
+              height: 24,
+            ),
+            label: 'Home'
             ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.request_page),
-            label: 'Request',
+            icon:Image.asset(
+              'assets/icons/request.png',
+              width: 24,
+              height: 24,
+            ),
+            label:'Request'
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
+            icon: Image.asset(
+              'assets/icons/profile.png',
+              width: 24,
+              height: 24,
+            ),
+            label:'Profile'
           ),
       ],
       currentIndex: _selectedIndex,
