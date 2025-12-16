@@ -73,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Padding(
                           padding: const EdgeInsets.all(12),
                           child: Image.asset(
-                            'assets/images/LifeLink.png',
+                            'assets/images/LifeLink_notext.png',
                             fit: BoxFit.contain,
                           ),
                         ),
