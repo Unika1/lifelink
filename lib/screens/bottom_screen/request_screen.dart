@@ -10,6 +10,10 @@ class RequestScreen extends StatefulWidget {
 class _RequestScreenState extends State<RequestScreen> {
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return SizedBox.expand(
+      child: Center(
+        child:Text("Welcome to the Request Screen ")
+        ),
+    );
   }
 }
