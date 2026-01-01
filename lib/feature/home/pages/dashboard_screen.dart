@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:lifelink/screens/bottom_screen/home_screen.dart';
-import 'package:lifelink/screens/bottom_screen/profile_screen.dart';
-import 'package:lifelink/screens/bottom_screen/request_screen.dart';
+import 'package:lifelink/feature/home/pages/home_screen.dart';
+import 'package:lifelink/feature/home/pages/profile_screen.dart';
+import 'package:lifelink/feature/home/pages/request_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lifelink/models/onboard_item.dart';
-import 'package:lifelink/screens/login_screen.dart';
-import 'package:lifelink/screens/register_screen.dart';
+import 'package:lifelink/feature/auth/presentation/pages/login_screen.dart';
+import 'package:lifelink/feature/auth/presentation/pages/register_screen.dart';
 import 'package:lifelink/widgets/my_button.dart';
 
 class OnboardingScreen extends StatefulWidget {

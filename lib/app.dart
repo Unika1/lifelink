@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lifelink/screens/splash_screen.dart';
+import 'package:lifelink/feature/onboarding/presentation/pages/splash_screen.dart';
 import 'package:lifelink/theme/app_theme.dart';
 
 class App extends StatelessWidget {

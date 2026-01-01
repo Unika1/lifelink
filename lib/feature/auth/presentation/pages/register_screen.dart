@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lifelink/common/my_snackbar.dart';
-import 'package:lifelink/screens/dashboard_screen.dart';
-import 'package:lifelink/screens/login_screen.dart';
+import 'package:lifelink/feature/home/pages/dashboard_screen.dart';
+import 'package:lifelink/feature/auth/presentation/pages/login_screen.dart';
 import 'package:lifelink/widgets/my_button.dart';
 import 'package:lifelink/widgets/my_textformfield.dart';
 
