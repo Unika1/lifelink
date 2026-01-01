@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifelink/common/my_snackbar.dart';
 import 'package:lifelink/feature/auth/presentation/pages/register_screen.dart';
+import 'package:lifelink/feature/auth/presentation/view_model/auth_view_model.dart';
+import 'package:lifelink/feature/auth/presentation/state/auth_state.dart';
+import 'package:lifelink/feature/home/pages/dashboard_screen.dart';
 import 'package:lifelink/widgets/my_button.dart';
 import 'package:lifelink/widgets/my_textformfield.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
@@ -22,27 +27,38 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
-    final email = emailController.text.trim();
-    final password = passwordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty) {
-      showMySnackBar(
-        context: context,
-        message: "Please fill all fields",
-        color: Colors.redAccent,
-      );
-    } else {
-      showMySnackBar(
-        context: context,
-        message: "Login Successful",
-        color: Colors.green,
+  Future<void> _handleLogin() async {
+    if (_formKey.currentState?.validate() ?? true) {
+      await ref.read(authViewModelProvider.notifier).login(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authViewModelProvider);
+    ref.listen<AuthState>(authViewModelProvider, (previous, next) {
+      if (next.status == AuthStatus.authenticated) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          );
+        });
+      }
+
+      if (next.status == AuthStatus.error) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showMySnackBar(
+            context: context,
+            message: next.errorMessage ?? "Login failed",
+            color: Colors.redAccent,
+          );
+        });
+      }
+    });
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -102,17 +118,25 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 30),
 
-                MyTextformfield(
-                  labelText: "Email",
-                  hintText: "Enter your email",
-                  controller: emailController,
-                ),
-                const SizedBox(height: 20),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      MyTextformfield(
+                        labelText: "Email",
+                        hintText: "Enter your email",
+                        controller: emailController,
+                      ),
+                      const SizedBox(height: 20),
 
-                MyTextformfield(
-                  labelText: "Password",
-                  hintText: "Enter your password",
-                  controller: passwordController,
+                      MyTextformfield(
+                        labelText: "Password",
+                        hintText: "Enter your password",
+                        controller: passwordController,
+                        obscureText: true,
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 10),
 
@@ -131,9 +155,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: MyButton(
-                    text: "Login",
+                    text: authState.status == AuthStatus.loading
+                        ? "Logging in.."
+                        : "Login",
                     color: Colors.redAccent,
-                    onPressed: _handleLogin,
+                    onPressed: authState.status == AuthStatus.loading
+                        ? null
+                        : () => _handleLogin(),
                   ),
                 ),
                 const SizedBox(height: 25),
