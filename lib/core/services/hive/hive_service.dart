@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:lifelink/core/constants/hive_table_constant.dart';
 import 'package:lifelink/feature/auth/data/models/auth_hive_model.dart';
 
@@ -7,6 +8,11 @@ class HiveService {
     if(!Hive.isAdapterRegistered(HiveTableConstant.authTypeId)){
       Hive.registerAdapter(AuthHiveModelAdapter());
     }
+  }
+
+  Future<void> init() async {
+    await Hive.initFlutter();
+    await openBoxes();
   }
 
   //open boxes
