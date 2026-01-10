@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifelink/common/my_snackbar.dart';
 import 'package:lifelink/feature/auth/presentation/pages/register_screen.dart';
-import 'package:lifelink/feature/auth/presentation/view_model/auth_view_model.dart';
 import 'package:lifelink/feature/auth/presentation/state/auth_state.dart';
+import 'package:lifelink/feature/auth/presentation/view_model/auth_view_model.dart';
 import 'package:lifelink/feature/home/pages/dashboard_screen.dart';
 import 'package:lifelink/widgets/my_button.dart';
 import 'package:lifelink/widgets/my_textformfield.dart';
@@ -21,6 +21,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   @override
+  void initState() {
+    super.initState();
+
+    ref.listen<AuthState>(authViewModelProvider, (previous, next) {
+      if (!mounted) return;
+
+      if (next.status == AuthStatus.authenticated) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      }
+
+      if (next.status == AuthStatus.error) {
+        showMySnackBar(
+          context: context,
+          message: next.errorMessage ?? "Login failed",
+          color: Colors.redAccent,
+        );
+      }
+    });
+  }
+
+  @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
@@ -28,37 +52,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (_formKey.currentState?.validate() ?? true) {
-      await ref.read(authViewModelProvider.notifier).login(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
-    }
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) return;
+
+    await ref.read(authViewModelProvider.notifier).login(
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
+        );
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authViewModelProvider);
-    ref.listen<AuthState>(authViewModelProvider, (previous, next) {
-      if (next.status == AuthStatus.authenticated) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const DashboardScreen()),
-          );
-        });
-      }
 
-      if (next.status == AuthStatus.error) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          showMySnackBar(
-            context: context,
-            message: next.errorMessage ?? "Login failed",
-            color: Colors.redAccent,
-          );
-        });
-      }
-    });
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -68,7 +74,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 50),
-
                 Center(
                   child: Column(
                     children: [
@@ -107,7 +112,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
                 const Text(
                   "Login",
@@ -126,20 +130,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         labelText: "Email",
                         hintText: "Enter your email",
                         controller: emailController,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return "Email is required";
+                          }
+                          if (!value.contains("@")) {
+                            return "Enter a valid email";
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 20),
-
                       MyTextformfield(
                         labelText: "Password",
                         hintText: "Enter your password",
                         controller: passwordController,
                         obscureText: true,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return "Password is required";
+                          }
+                          if (value.length < 4) {
+                            return "Password too short";
+                          }
+                          return null;
+                        },
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
 
+                const SizedBox(height: 10),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -159,13 +180,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ? "Logging in.."
                         : "Login",
                     color: Colors.redAccent,
-                    onPressed: authState.status == AuthStatus.loading
-                        ? null
-                        : () => _handleLogin(),
+                    onPressed:
+                        authState.status == AuthStatus.loading ? null : _handleLogin,
                   ),
                 ),
-                const SizedBox(height: 25),
 
+                const SizedBox(height: 25),
                 const Row(
                   children: [
                     Expanded(child: Divider()),
