@@ -23,25 +23,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-
-    ref.listen<AuthState>(authViewModelProvider, (previous, next) {
-      if (!mounted) return;
-
-      if (next.status == AuthStatus.authenticated) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
-        );
-      }
-
-      if (next.status == AuthStatus.error) {
-        showMySnackBar(
-          context: context,
-          message: next.errorMessage ?? "Login failed",
-          color: Colors.redAccent,
-        );
-      }
-    });
   }
 
   @override
@@ -64,6 +45,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authViewModelProvider);
+
+    // Listen to auth state changes and react (navigation / errors).
+    ref.listen<AuthState>(authViewModelProvider, (previous, next) {
+      if (!mounted) return;
+
+      if (next.status == AuthStatus.authenticated) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      }
+
+      if (next.status == AuthStatus.error) {
+        showMySnackBar(
+          context: context,
+          message: next.errorMessage ?? "Login failed",
+          color: Colors.redAccent,
+        );
+      }
+    });
 
     return Scaffold(
       body: SafeArea(

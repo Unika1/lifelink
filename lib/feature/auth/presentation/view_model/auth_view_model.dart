@@ -26,17 +26,27 @@ class AuthViewModel extends Notifier<AuthState> {
     required String lastName,
     required String email,
     required String password,
+    required String confirmPassword,
   }) async {
-    state = state.copywith(status: AuthStatus.loading);
+    if (password != confirmPassword) {
+      state = state.copywith(
+        status: AuthStatus.error,
+        errorMessage: 'Passwords do not match',
+      );
+      return;
+    }
+
+    state = state.copywith(status: AuthStatus.loading, errorMessage: null);
 
     final params = RegisterUsecaseParams(
       firstName: firstName,
       lastName: lastName,
       email: email,
       password: password,
+      confirmPassword: confirmPassword,
     );
 
-    final result = await _registerUsecase.call(params);
+    final result = await _registerUsecase(params);
 
     result.fold(
       (failure) {
@@ -62,7 +72,7 @@ class AuthViewModel extends Notifier<AuthState> {
     required String email,
     required String password,
   }) async {
-    state = state.copywith(status: AuthStatus.loading);
+    state = state.copywith(status: AuthStatus.loading, errorMessage: null);
 
     final params = LoginUsecaseParams(email: email, password: password);
     final result = await _loginUsecase(params);
@@ -74,18 +84,18 @@ class AuthViewModel extends Notifier<AuthState> {
           errorMessage: failure.message,
         );
       },
-      (authEntity) async {
-        final id = authEntity.authId;
-        if (id != null && id.isNotEmpty) {
-          await _userSessionService.setLoggedIn(id);
-        }
-
+      (authEntity) {
         state = state.copywith(
           status: AuthStatus.authenticated,
           authEntity: authEntity,
         );
       },
     );
+
+    final id = state.authEntity?.authId;
+    if (state.status == AuthStatus.authenticated && id != null && id.isNotEmpty) {
+      await _userSessionService.setLoggedIn(id);
+    }
   }
 
   Future<void> logout() async {

@@ -12,16 +12,19 @@ class RegisterUsecaseParams extends Equatable {
   final String lastName;
   final String email;
   final String password;
+  final String confirmPassword;
+
 
   const RegisterUsecaseParams({
     required this.firstName,
     required this.lastName,
     required this.email,
     required this.password,
+    required this.confirmPassword,
   });
 
   @override
-  List<Object?> get props => [firstName, lastName, email, password];
+  List<Object?> get props => [firstName, lastName, email, password,confirmPassword,];
 }
 
 // Provider
@@ -42,6 +45,7 @@ class RegisterUsecase implements UsecaseWithParams<bool, RegisterUsecaseParams> 
       lastName: params.lastName,
       email: params.email,
       password: params.password,
+      confirmPassword: params.confirmPassword,
     );
 
     return _authRepository.register(entity);
