@@ -24,6 +24,7 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
       ApiEndpoints.register,
       data: model.toJson(),
     );
+    
   }
 
   @override
