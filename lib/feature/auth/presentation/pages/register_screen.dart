@@ -19,6 +19,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final lastnameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
@@ -26,32 +29,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     lastnameController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _registerUser() {
-    if (firstnameController.text.trim().isEmpty ||
-        lastnameController.text.trim().isEmpty ||
-        emailController.text.trim().isEmpty ||
-        passwordController.text.trim().isEmpty) {
-      showMySnackBar(
-        context: context,
-        message: "All fields required",
-        color: Colors.redAccent,
-      );
-      return;
-    }
+  Future<void> _registerUser() async {
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) return;
 
-    ref.read(authViewModelProvider.notifier).register(
+    await ref.read(authViewModelProvider.notifier).register(
           firstName: firstnameController.text.trim(),
           lastName: lastnameController.text.trim(),
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
+          confirmPassword: confirmPasswordController.text.trim(),
         );
   }
 
   void _goToLogin() {
-    Navigator.push(
+    Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
@@ -61,30 +57,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authViewModelProvider);
 
-  
     ref.listen<AuthState>(authViewModelProvider, (previous, next) {
-      // Only react when status actually changes
-      if (previous?.status == next.status) return;
-
       if (next.status == AuthStatus.error) {
-        showMySnackBar(
-          context: context,
-          message: next.errorMessage ?? "Registration failed",
-          color: Colors.redAccent,
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showMySnackBar(
+            context: context,
+            message: next.errorMessage ?? "Registration failed",
+            color: Colors.redAccent,
+          );
+        });
       }
 
       if (next.status == AuthStatus.registered) {
-        showMySnackBar(
-          context: context,
-          message: "Account created successfully",
-          color: Colors.green,
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showMySnackBar(
+            context: context,
+            message: "Account created successfully",
+            color: Colors.green,
+          );
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        });
       }
     });
 
@@ -94,165 +90,181 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back, color: Colors.grey),
-                  ),
-                ),
-                const SizedBox(height: 8),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
 
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 24,
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.arrow_back, color: Colors.grey),
+                    ),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Create An Account",
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF9B001B),
+                  const SizedBox(height: 8),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 24,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      MyTextformfield(
-                        labelText: "First name",
-                        hintText: "Enter your first name",
-                        controller: firstnameController,
-                      ),
-                      const SizedBox(height: 16),
-
-                      MyTextformfield(
-                        labelText: "Last name",
-                        hintText: "Enter your last name",
-                        controller: lastnameController,
-                      ),
-                      const SizedBox(height: 16),
-
-                      MyTextformfield(
-                        labelText: "Email",
-                        hintText: "Enter your email",
-                        controller: emailController,
-                      ),
-                      const SizedBox(height: 16),
-
-                      MyTextformfield(
-                        labelText: "Password",
-                        hintText: "Create password",
-                        controller: passwordController,
-                        obscureText: true,
-                      ),
-                      const SizedBox(height: 24),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: MyButton(
-                          text: authState.status == AuthStatus.loading
-                              ? "Creating..."
-                              : "Create Account",
-                          color: const Color(0xFFE4153B),
-                          onPressed: authState.status == AuthStatus.loading
-                              ? null
-                              : _registerUser,
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Create An Account",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF9B001B),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 24),
 
-                      Row(
-                        children: [
-                          const Expanded(child: Divider(thickness: 0.8)),
-                          const SizedBox(width: 8),
-                          Text(
-                            "OR",
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Expanded(child: Divider(thickness: 0.8)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
+                        MyTextformfield(
+                          labelText: "First name",
+                          hintText: "Enter your first name",
+                          controller: firstnameController,
+                        ),
+                        const SizedBox(height: 16),
 
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: () {
-                            showMySnackBar(
-                              context: context,
-                              message: "Google sign in pressed",
-                              color: Colors.redAccent,
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            side: BorderSide(color: Colors.grey.shade300),
+                        MyTextformfield(
+                          labelText: "Last name",
+                          hintText: "Enter your last name",
+                          controller: lastnameController,
+                        ),
+                        const SizedBox(height: 16),
+
+                        MyTextformfield(
+                          labelText: "Email",
+                          hintText: "Enter your email",
+                          controller: emailController,
+                        ),
+                        const SizedBox(height: 16),
+
+                        MyTextformfield(
+                          labelText: "Password",
+                          hintText: "Create password",
+                          controller: passwordController,
+                          obscureText: true,
+                        ),
+                        const SizedBox(height: 16),
+
+                        MyTextformfield(
+                          labelText: "Confirm Password",
+                          hintText: "Re-enter password",
+                          controller: confirmPasswordController,
+                          obscureText: true,
+                        ),
+                        const SizedBox(height: 24),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: MyButton(
+                            text: authState.status == AuthStatus.loading
+                                ? "Creating..."
+                                : "Create Account",
+                            color: const Color(0xFFE4153B),
+                            onPressed: authState.status == AuthStatus.loading
+                                ? null
+                                : _registerUser,
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.g_mobiledata, size: 28),
-                              SizedBox(width: 8),
-                              Text(
-                                "Sign in with Google",
-                                style: TextStyle(fontSize: 15),
+                        ),
+                        const SizedBox(height: 20),
+
+                        Row(
+                          children: [
+                            const Expanded(child: Divider(thickness: 0.8)),
+                            const SizedBox(width: 8),
+                            Text(
+                              "OR",
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
                               ),
-                            ],
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(child: Divider(thickness: 0.8)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              showMySnackBar(
+                                context: context,
+                                message: "Google sign in pressed",
+                                color: Colors.redAccent,
+                              );
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              side: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(Icons.g_mobiledata, size: 28),
+                                SizedBox(width: 8),
+                                Text(
+                                  "Sign in with Google",
+                                  style: TextStyle(fontSize: 15),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Already have an account? ",
+                        style: TextStyle(color: Colors.grey.shade700),
+                      ),
+                      TextButton(
+                        onPressed: _goToLogin,
+                        child: const Text(
+                          "Log in",
+                          style: TextStyle(
+                            color: Color(0xFFE4153B),
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ],
                   ),
-                ),
 
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Already have an account? ",
-                      style: TextStyle(color: Colors.grey.shade700),
-                    ),
-                    TextButton(
-                      onPressed: _goToLogin,
-                      child: const Text(
-                        "Log in",
-                        style: TextStyle(
-                          color: Color(0xFFE4153B),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
         ),

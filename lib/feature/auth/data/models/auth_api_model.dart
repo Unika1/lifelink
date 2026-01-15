@@ -6,6 +6,7 @@ class AuthApiModel {
   final String lastName;
   final String email;
   final String? password;
+  final String? confirmPassword;
 
   AuthApiModel({
     this.id,
@@ -13,6 +14,7 @@ class AuthApiModel {
     required this.lastName,
     required this.email,
     this.password,
+    this.confirmPassword,
   });
 
   Map<String, dynamic> toJson() {
@@ -21,6 +23,7 @@ class AuthApiModel {
       "lastName": lastName,
       "email": email,
       "password": password,
+      "confirmPassword": confirmPassword,
     };
   }
 
@@ -48,6 +51,7 @@ class AuthApiModel {
       lastName: entity.lastName,
       email: entity.email,
       password: entity.password,
+      confirmPassword: entity.password,
     );
   }
 }

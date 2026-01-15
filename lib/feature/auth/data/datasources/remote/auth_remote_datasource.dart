@@ -24,6 +24,7 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
       ApiEndpoints.register,
       data: model.toJson(),
     );
+    
   }
 
   @override
@@ -39,9 +40,9 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
     final data = response.data;
 
     // if API returns { user: {...} }
-    if (data is Map && data['user'] != null) {
+    if (data is Map && data['data'] != null) {
       return AuthApiModel.fromJson(
-        Map<String, dynamic>.from(data['user']),
+        Map<String, dynamic>.from(data['data']),
       );
     }
 
