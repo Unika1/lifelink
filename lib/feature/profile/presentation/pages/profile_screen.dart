@@ -89,6 +89,70 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<void> _editPhoneNumber(String? current) async {
+    final controller = TextEditingController(text: current ?? "");
+
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Phone Number"),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            hintText: "e.g. 98XXXXXXXX",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      ref.read(profileViewModelProvider.notifier).setPhoneNumber(result);
+    }
+  }
+
+  Future<void> _editEmergencyContact(String? current) async {
+    final controller = TextEditingController(text: current ?? "");
+
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Emergency Contact"),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            hintText: "e.g. 97XXXXXXXX",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      ref.read(profileViewModelProvider.notifier).setEmergencyContact(result);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authViewModelProvider);
@@ -222,8 +286,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   onTap: () => _editBloodGroup(profileState.bloodGroup),
                 ),
                 const Divider(height: 1),
-                const _InfoTile(label: "Phone Number", value: "98XXXXXXXX"),
-                const _InfoTile(label: "Emergency Contact", value: "97XXXXXXXX"),
+                ListTile(
+  contentPadding: EdgeInsets.zero,
+  title: const Text("Phone Number"),
+  subtitle: Text(profileState.phoneNumber ?? "Tap to set"),
+  trailing: const Icon(Icons.edit),
+  onTap: () => _editPhoneNumber(profileState.phoneNumber),
+),
+const Divider(height: 1),
+
+ListTile(
+  contentPadding: EdgeInsets.zero,
+  title: const Text("Emergency Contact"),
+  subtitle: Text(profileState.emergencyContact ?? "Tap to set"),
+  trailing: const Icon(Icons.edit),
+  onTap: () => _editEmergencyContact(profileState.emergencyContact),
+),
+
               ],
             ),
 
