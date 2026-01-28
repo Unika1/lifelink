@@ -65,4 +65,19 @@ class ProfileViewModel extends Notifier<ProfileState> {
       errorMessage: null,
     );
   }
+  void setPhoneNumber(String phone) {
+    state = state.copyWith(
+      status: ProfileStatus.loaded,
+      phoneNumber: phone,
+      errorMessage: null,
+    );
+  }
+
+  void setEmergencyContact(String contact) {
+    state = state.copyWith(
+      status: ProfileStatus.loaded,
+      emergencyContact: contact,
+      errorMessage: null,
+    );
+  }
 }
