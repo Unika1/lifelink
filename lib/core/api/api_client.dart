@@ -29,4 +29,25 @@ class ApiClient {
   }) async {
     return dio.post(path, data: data);
   }
+   Future<Response> get(
+    String path, {
+    Map<String, dynamic>? query,
+    Options? options,
+  }) async {
+    return dio.get(path, queryParameters: query, options: options);
+  }
+  //for image upload
+  Future<Response> uploadFile(
+    String path, {
+    required FormData formData,
+    Options? options,
+    ProgressCallback? onSendProgress,
+  }) async {
+    return dio.put(
+      path,
+      data: formData,
+      options: options,
+      onSendProgress: onSendProgress,
+    );
+  }
 }

@@ -1,4 +1,3 @@
-import 'package:dartz/dartz.dart';
 import 'package:lifelink/core/provider/hive_service_provider.dart';
 import 'package:lifelink/core/services/hive/hive_service.dart';
 import 'package:lifelink/feature/auth/data/datasources/auth_datasource.dart';
@@ -10,13 +9,14 @@ final authLocalDatasourceProvider = Provider<AuthLocalDatasource>((ref) {
   return AuthLocalDatasource(hiveService: hiveService);
 });
 
-class AuthLocalDatasource implements IAuthDataSource{
+class AuthLocalDatasource implements IAuthLocalDataSource{
   final HiveService _hiveService;
 
   AuthLocalDatasource({required HiveService hiveService}) : _hiveService = hiveService;
 
   @override
   Future<AuthHiveModel?> getCurrentUser() async {
+    return null;
   }
 
   @override

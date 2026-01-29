@@ -3,11 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:lifelink/common/my_snackbar.dart';
 import 'package:lifelink/core/api/api_endpoints.dart';
 import 'package:lifelink/feature/auth/presentation/pages/login_screen.dart';
 import 'package:lifelink/feature/auth/presentation/view_model/auth_view_model.dart';
-import 'package:lifelink/feature/profile/change_password_screen.dart';
+import 'package:lifelink/feature/profile/presentation/pages/change_password_screen.dart';
 import 'package:lifelink/feature/profile/presentation/state/profile_state.dart';
 import 'package:lifelink/feature/profile/presentation/view_model/profile_view_model.dart';
 
@@ -20,14 +21,129 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _picker = ImagePicker();
+  final List<XFile> _selectedMedia = [];
 
-  Future<void> _pickAndUpload(ImageSource source) async {
-    final picked = await _picker.pickImage(source: source, imageQuality: 80);
+  /// Request permission with proper status handling
+  Future<bool> _askUserForPermission(Permission permission) async {
+    final status = await permission.status;
+
+    if (status.isGranted) {
+      return true;
+    }
+
+    if (status.isDenied) {
+      final result = await permission.request();
+      return result.isGranted;
+    }
+
+    if (status.isPermanentlyDenied) {
+      if (!mounted) return false;
+      _showPermissionDeniedDialog();
+      return false;
+    }
+
+    return false;
+  }
+
+  /// Show dialog when permission is permanently denied
+  void _showPermissionDeniedDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Permission Required"),
+        content: const Text(
+          "Please enable permission from Settings to use this feature.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              openAppSettings();
+              Navigator.pop(context);
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Pick from camera with permission handling
+  Future<void> _pickFromCamera() async {
+    final hasPermission = await _askUserForPermission(Permission.camera);
+    if (!hasPermission) return;
+
+    final picked = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 80,
+    );
     if (picked == null) return;
+
+    setState(() {
+      _selectedMedia.clear();
+      _selectedMedia.add(picked);
+    });
+  }
+
+  /// Pick from gallery with permission handling
+  Future<void> _pickFromGallery({bool allowMultiple = false}) async {
+    try {
+      if (allowMultiple) {
+        final List<XFile> images = await _picker.pickMultiImage(
+          imageQuality: 80,
+        );
+        if (images.isNotEmpty) {
+          setState(() {
+            _selectedMedia.clear();
+            _selectedMedia.addAll(images);
+          });
+        }
+      } else {
+        final XFile? image = await _picker.pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 80,
+        );
+        if (image != null) {
+          setState(() {
+            _selectedMedia.clear();
+            _selectedMedia.add(image);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Gallery Error $e');
+      if (mounted) {
+        showMySnackBar(
+          context: context,
+          message: 'Cannot access your gallery',
+          color: Colors.red,
+        );
+      }
+    }
+  }
+
+
+  /// Upload selected media
+  Future<void> _uploadSelectedMedia() async {
+    if (_selectedMedia.isEmpty) {
+      showMySnackBar(
+        context: context,
+        message: 'Please select an image first',
+        color: Colors.orange,
+      );
+      return;
+    }
 
     await ref
         .read(profileViewModelProvider.notifier)
-        .uploadProfileImage(File(picked.path));
+        .uploadProfileImage(File(_selectedMedia[0].path));
+    
+    setState(() {
+      _selectedMedia.clear();
+    });
   }
 
   void _showPickOptions() {
@@ -41,7 +157,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               title: const Text("Choose from Gallery"),
               onTap: () {
                 Navigator.pop(context);
-                _pickAndUpload(ImageSource.gallery);
+                _pickFromGallery();
               },
             ),
             ListTile(
@@ -49,7 +165,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               title: const Text("Take Photo"),
               onTap: () {
                 Navigator.pop(context);
-                _pickAndUpload(ImageSource.camera);
+                _pickFromCamera();
               },
             ),
           ],
@@ -212,17 +328,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         radius: 50,
                         backgroundColor: Colors.grey.shade200,
                         child: ClipOval(
-                          child: fullImageUrl == null
-                              ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                              : Image.network(
-                                  fullImageUrl,
+                          child: _selectedMedia.isNotEmpty
+                              ? Image.file(
+                                  File(_selectedMedia[0].path),
                                   width: 100,
                                   height: 100,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stack) {
-                                    return const Icon(Icons.person, size: 50, color: Colors.red);
-                                  },
-                                ),
+                                )
+                              : (fullImageUrl == null
+                                  ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                                  : Image.network(
+                                      fullImageUrl,
+                                      width: 100,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stack) {
+                                        return const Icon(Icons.person, size: 50, color: Colors.red);
+                                      },
+                                    )),
                         ),
                       ),
                       Positioned(
@@ -258,6 +381,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(email, style: TextStyle(color: Colors.grey.shade700)),
+                  if (_selectedMedia.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: isUploading ? null : _uploadSelectedMedia,
+                          icon: const Icon(Icons.upload),
+                          label: const Text("Upload"),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _selectedMedia.clear();
+                            });
+                          },
+                          icon: const Icon(Icons.close),
+                          label: const Text("Cancel"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
