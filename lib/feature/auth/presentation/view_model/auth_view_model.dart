@@ -29,14 +29,14 @@ class AuthViewModel extends Notifier<AuthState> {
     required String confirmPassword,
   }) async {
     if (password != confirmPassword) {
-      state = state.copywith(
+      state = state.copyWith(
         status: AuthStatus.error,
         errorMessage: 'Passwords do not match',
       );
       return;
     }
 
-    state = state.copywith(status: AuthStatus.loading, errorMessage: null);
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
 
     final params = RegisterUsecaseParams(
       firstName: firstName,
@@ -50,16 +50,16 @@ class AuthViewModel extends Notifier<AuthState> {
 
     result.fold(
       (failure) {
-        state = state.copywith(
+        state = state.copyWith(
           status: AuthStatus.error,
           errorMessage: failure.message,
         );
       },
       (isRegistered) {
         if (isRegistered) {
-          state = state.copywith(status: AuthStatus.registered);
+          state = state.copyWith(status: AuthStatus.registered);
         } else {
-          state = state.copywith(
+          state = state.copyWith(
             status: AuthStatus.error,
             errorMessage: 'Registration failed',
           );
@@ -72,20 +72,20 @@ class AuthViewModel extends Notifier<AuthState> {
     required String email,
     required String password,
   }) async {
-    state = state.copywith(status: AuthStatus.loading, errorMessage: null);
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
 
     final params = LoginUsecaseParams(email: email, password: password);
     final result = await _loginUsecase(params);
 
     result.fold(
       (failure) {
-        state = state.copywith(
+        state = state.copyWith(
           status: AuthStatus.error,
           errorMessage: failure.message,
         );
       },
       (authEntity) {
-        state = state.copywith(
+        state = state.copyWith(
           status: AuthStatus.authenticated,
           authEntity: authEntity,
         );
@@ -93,14 +93,15 @@ class AuthViewModel extends Notifier<AuthState> {
     );
 
     final id = state.authEntity?.authId;
+    final role = state.authEntity?.role ?? 'donor';
     if (state.status == AuthStatus.authenticated && id != null && id.isNotEmpty) {
-      await _userSessionService.setLoggedIn(id);
+      await _userSessionService.setLoggedIn(id, role: role);
     }
   }
 
   Future<void> logout() async {
     await _userSessionService.logout();
-    state = state.copywith(
+    state = state.copyWith(
       status: AuthStatus.initial,
       authEntity: null,
       errorMessage: null,
