@@ -51,9 +51,9 @@ class AuthRemoteDatasource implements IAuthRemoteDataSource {
         await _tokenService.saveToken(token);
       }
 
-      // Save session
+      // Save session with role
       if (user.id != null && user.id!.isNotEmpty) {
-        await _userSessionService.setLoggedIn(user.id!);
+        await _userSessionService.setLoggedIn(user.id!, role: user.role);
       }
 
       return user;

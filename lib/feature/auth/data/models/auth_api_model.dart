@@ -10,6 +10,7 @@ class AuthApiModel {
   final String? token;
   final String? imageUrl;
   final String? bloodGroup;
+  final String role;
 
   AuthApiModel({
     this.id,
@@ -21,6 +22,7 @@ class AuthApiModel {
     this.token,
     this.imageUrl,
     this.bloodGroup,
+    this.role = 'donor',
   });
 
   Map<String, dynamic> toJson() {
@@ -39,8 +41,10 @@ class AuthApiModel {
       firstName: json['firstName'] ?? '',
       lastName: json['lastName'] ?? '',
       email: json['email'] ?? '',
+      token: json['token'],
       imageUrl: json['imageUrl'],
       bloodGroup: json['bloodGroup'],
+      role: json['role'] ?? 'donor',
     );
   }
 
@@ -53,6 +57,7 @@ class AuthApiModel {
       token: token,
       imageUrl: imageUrl,
       bloodGroup: bloodGroup,
+      role: role,
     );
   }
 
@@ -63,6 +68,7 @@ class AuthApiModel {
       email: entity.email,
       password: entity.password,
       confirmPassword: entity.confirmPassword,
+      role: entity.role,
     );
   }
 }
