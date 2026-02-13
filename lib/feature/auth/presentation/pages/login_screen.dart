@@ -5,6 +5,7 @@ import 'package:lifelink/feature/auth/presentation/pages/register_screen.dart';
 import 'package:lifelink/feature/auth/presentation/state/auth_state.dart';
 import 'package:lifelink/feature/auth/presentation/view_model/auth_view_model.dart';
 import 'package:lifelink/feature/home/pages/dashboard_screen.dart';
+import 'package:lifelink/feature/hospital_dashboard/presentation/pages/hospital_dashboard_screen.dart';
 import 'package:lifelink/widgets/my_button.dart';
 import 'package:lifelink/widgets/my_textformfield.dart';
 
@@ -51,9 +52,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
 
       if (next.status == AuthStatus.authenticated) {
+        final role = next.authEntity?.role ?? 'donor';
+        final Widget destination = role == 'hospital'
+            ? const HospitalDashboardScreen()
+            : const DashboardScreen();
+
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          MaterialPageRoute(builder: (_) => destination),
         );
       }
 
