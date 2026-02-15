@@ -34,22 +34,36 @@ class BloodRequestApiModel {
   });
 
   Map<String, dynamic> toJson() {
-    return {
-      '_id': id,
-      'hospitalId': hospitalId,
+    final map = <String, dynamic>{
       'hospitalName': hospitalName,
       'patientName': patientName,
       'bloodType': bloodType,
       'unitsRequested': unitsRequested,
-      'status': status,
-      'requestedBy': requestedBy,
-      'contactPhone': contactPhone,
-      'neededBy': neededBy?.toIso8601String(),
-      'scheduledAt': scheduledAt?.toIso8601String(),
-      'notes': notes,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
     };
+
+    if (hospitalId != null && hospitalId!.isNotEmpty) {
+      map['hospitalId'] = hospitalId;
+    }
+    if (status.isNotEmpty) {
+      map['status'] = status;
+    }
+    if (requestedBy != null && requestedBy!.isNotEmpty) {
+      map['requestedBy'] = requestedBy;
+    }
+    if (contactPhone != null && contactPhone!.isNotEmpty) {
+      map['contactPhone'] = contactPhone;
+    }
+    if (neededBy != null) {
+      map['neededBy'] = neededBy!.toIso8601String();
+    }
+    if (scheduledAt != null) {
+      map['scheduledAt'] = scheduledAt!.toIso8601String();
+    }
+    if (notes != null && notes!.isNotEmpty) {
+      map['notes'] = notes;
+    }
+
+    return map;
   }
 
   factory BloodRequestApiModel.fromJson(Map<String, dynamic> json) {

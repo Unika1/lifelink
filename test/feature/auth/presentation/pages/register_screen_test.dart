@@ -11,7 +11,7 @@ import 'package:lifelink/core/error/failures.dart';
 import 'package:lifelink/core/provider/shared_preferences_provider.dart';
 import 'package:lifelink/core/services/storage/user_session_service.dart';
 
-//dart pub global activate test_cov_console
+
 
 // Mocks
 class MockRegisterUsecase extends Mock implements RegisterUsecase {}

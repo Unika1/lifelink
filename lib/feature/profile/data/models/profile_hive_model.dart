@@ -22,12 +22,24 @@ class ProfileHiveModel extends HiveObject {
   @HiveField(4)
   final String? imageUrl;
 
+  @HiveField(5)
+  final String? bloodGroup;
+
+  @HiveField(6)
+  final String? phoneNumber;
+
+  @HiveField(7)
+  final String? emergencyContact;
+
   ProfileHiveModel({
     required this.userId,
     required this.firstName,
     required this.lastName,
     required this.email,
     this.imageUrl,
+    this.bloodGroup,
+    this.phoneNumber,
+    this.emergencyContact,
   });
 
   factory ProfileHiveModel.fromEntity(ProfileEntity entity) {
@@ -37,6 +49,9 @@ class ProfileHiveModel extends HiveObject {
       lastName: entity.lastName,
       email: entity.email,
       imageUrl: entity.imageUrl,
+      bloodGroup: entity.bloodGroup,
+      phoneNumber: entity.phoneNumber,
+      emergencyContact: entity.emergencyContact,
     );
   }
 
@@ -47,6 +62,9 @@ class ProfileHiveModel extends HiveObject {
       lastName: lastName,
       email: email,
       imageUrl: imageUrl,
+      bloodGroup: bloodGroup,
+      phoneNumber: phoneNumber,
+      emergencyContact: emergencyContact,
     );
   }
 }

@@ -9,6 +9,8 @@ import 'package:lifelink/feature/auth/domain/usecases/login_usecase.dart';
 
 class MockAuthRepository extends Mock implements IAuthRepository {}
 
+//flutter pub run test_cov_console  
+
 void main() {
   late LoginUsecase usecase;
   late MockAuthRepository mockRepo;

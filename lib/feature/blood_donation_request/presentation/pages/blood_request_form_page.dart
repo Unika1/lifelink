@@ -8,6 +8,7 @@ import 'package:lifelink/feature/home/presentation/pages/dashboard_screen.dart';
 import 'package:lifelink/feature/hospital/domain/entities/hospital_entity.dart';
 import 'package:lifelink/feature/hospital/presentation/state/hospital_state.dart';
 import 'package:lifelink/feature/hospital/presentation/view_model/hospital_view_model.dart';
+import 'package:lifelink/feature/profile/presentation/state/profile_state.dart';
 import 'package:lifelink/feature/profile/presentation/view_model/profile_view_model.dart';
 import 'package:lifelink/theme/app_theme.dart';
 
@@ -129,6 +130,37 @@ class _BloodRequestFormPageState extends ConsumerState<BloodRequestFormPage> {
     return '${date.day}/${date.month}/${date.year}  $hour:$minute $period';
   }
 
+  String _buildName(String? firstName, String? lastName) {
+    return '${firstName ?? ''} ${lastName ?? ''}'.trim();
+  }
+
+  String _resolveDonorName({
+    required String authName,
+    required String profileName,
+    String? authEmail,
+    String? requestPatientName,
+  }) {
+    if (requestPatientName != null && requestPatientName.trim().isNotEmpty) {
+      return requestPatientName.trim();
+    }
+    if (profileName.isNotEmpty) {
+      return profileName;
+    }
+    if (authName.isNotEmpty) {
+      return authName;
+    }
+
+    final email = authEmail?.trim() ?? '';
+    if (email.isNotEmpty && email.contains('@')) {
+      final username = email.split('@').first.trim();
+      if (username.isNotEmpty) {
+        return username;
+      }
+    }
+
+    return 'Donor';
+  }
+
   Future<void> _selectDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -214,10 +246,13 @@ class _BloodRequestFormPageState extends ConsumerState<BloodRequestFormPage> {
     final authState = ref.read(authViewModelProvider);
     final profileState = ref.read(profileViewModelProvider);
     final user = authState.authEntity;
-    final profileName =
-      '${profileState.firstName ?? ''} ${profileState.lastName ?? ''}'.trim();
-    final authName = '${user?.firstName ?? ''} ${user?.lastName ?? ''}'.trim();
-    final donorName = profileName.isNotEmpty ? profileName : authName;
+    final profileName = _buildName(profileState.firstName, profileState.lastName);
+    final authName = _buildName(user?.firstName, user?.lastName);
+    final donorName = _resolveDonorName(
+      authName: authName,
+      profileName: profileName,
+      authEmail: user?.email,
+    );
 
     final request = BloodRequestEntity(
       hospitalId: hospitalId,
@@ -278,7 +313,10 @@ class _BloodRequestFormPageState extends ConsumerState<BloodRequestFormPage> {
   Widget build(BuildContext context) {
     final requestState = ref.watch(bloodRequestViewModelProvider);
     final authState = ref.watch(authViewModelProvider);
+    final profileState = ref.watch(profileViewModelProvider);
     final user = authState.authEntity;
+    final authName = _buildName(user?.firstName, user?.lastName);
+    final profileName = _buildName(profileState.firstName, profileState.lastName);
     final isSubmitting = requestState.status == BloodRequestStatus.creating ||
         requestState.status == BloodRequestStatus.loading;
 
@@ -291,6 +329,12 @@ class _BloodRequestFormPageState extends ConsumerState<BloodRequestFormPage> {
     });
 
     final currentRequest = widget.request;
+    final donorDisplayName = _resolveDonorName(
+      authName: authName,
+      profileName: profileName,
+      authEmail: user?.email,
+      requestPatientName: currentRequest?.patientName,
+    );
     final statusColor = _statusColor(currentRequest?.status ?? 'pending');
 
     return Scaffold(
@@ -365,9 +409,7 @@ class _BloodRequestFormPageState extends ConsumerState<BloodRequestFormPage> {
                   border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: Text(
-                  _isUpdate
-                      ? currentRequest!.patientName
-                      : '${user?.firstName ?? ''} ${user?.lastName ?? ''}'.trim(),
+                  donorDisplayName,
                   style: const TextStyle(fontSize: 15, color: AppTheme.textColor),
                 ),
               ),

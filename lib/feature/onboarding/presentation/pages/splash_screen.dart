@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifelink/core/services/storage/user_session_service.dart';
-import 'package:lifelink/feature/home/pages/dashboard_screen.dart';
+import 'package:lifelink/feature/home/presentation/pages/dashboard_screen.dart';
+import 'package:lifelink/feature/hospital/presentation/pages/dashboard/hospital_requests_screen.dart';
 import 'package:lifelink/feature/onboarding/presentation/pages/onboarding_screen.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -25,9 +26,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final session = ref.read(userSessionServiceProvider);
 
     if (session.isLoggedIn()) {
+      final role = session.getUserRole();
+      final Widget destination = role == 'hospital'
+          ? const HospitalRequestsScreen()
+          : const DashboardScreen();
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        MaterialPageRoute(builder: (_) => destination),
       );
     } else {
       Navigator.pushReplacement(

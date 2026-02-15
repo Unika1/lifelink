@@ -4,6 +4,9 @@ enum ProfileStatus { initial, loading, loaded, error }
 
 class ProfileState extends Equatable {
   final ProfileStatus status;
+  final String? firstName;
+  final String? lastName;
+  final String? email;
   final String? profileImageUrl;
   final String? bloodGroup;
   final String? phoneNumber;
@@ -12,6 +15,9 @@ class ProfileState extends Equatable {
 
   const ProfileState({
     this.status = ProfileStatus.initial,
+    this.firstName,
+    this.lastName,
+    this.email,
     this.profileImageUrl,
     this.bloodGroup,
     this.phoneNumber,
@@ -21,6 +27,9 @@ class ProfileState extends Equatable {
 
   ProfileState copyWith({
     ProfileStatus? status,
+    String? firstName,
+    String? lastName,
+    String? email,
     String? profileImageUrl,
     String? bloodGroup,
     String? phoneNumber,
@@ -29,6 +38,9 @@ class ProfileState extends Equatable {
   }) {
     return ProfileState(
       status: status ?? this.status,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      email: email ?? this.email,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       bloodGroup: bloodGroup ?? this.bloodGroup,
       phoneNumber: phoneNumber ?? this.phoneNumber,
@@ -38,5 +50,15 @@ class ProfileState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [status, profileImageUrl, bloodGroup,phoneNumber,emergencyContact, errorMessage];
+  List<Object?> get props => [
+        status,
+        firstName,
+        lastName,
+        email,
+        profileImageUrl,
+        bloodGroup,
+        phoneNumber,
+        emergencyContact,
+        errorMessage,
+      ];
 }

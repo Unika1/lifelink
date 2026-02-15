@@ -8,4 +8,6 @@ abstract interface class IProfileRepository {
   Future<Either<Failure, String>> uploadProfileImage(File image);
   Future<Either<Failure, bool>> clearProfileCache();
   Future<Either<Failure, String?>> getCachedProfileImage();
+  Future<Either<Failure, Map<String, dynamic>>> updateProfile(
+      Map<String, dynamic> data);
 }

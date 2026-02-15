@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lifelink/feature/profile/domain/usecases/get_cached_profile_image_usecase.dart';
+import 'package:lifelink/feature/profile/data/repositories/profile_repository.dart';
+import 'package:lifelink/feature/profile/domain/repositories/profile_repository.dart';
 import 'package:lifelink/feature/profile/domain/usecases/upload_profile_usecase.dart';
 import 'package:lifelink/feature/profile/presentation/state/profile_state.dart';
 
@@ -9,29 +10,33 @@ final profileViewModelProvider =
 
 class ProfileViewModel extends Notifier<ProfileState> {
   late final UploadProfileImageUsecase _uploadUsecase;
-  late final GetCachedProfileImageUsecase _getCachedUsecase;
+  late final IProfileRepository _repository;
 
   @override
   ProfileState build() {
     _uploadUsecase = ref.read(uploadProfileImageUsecaseProvider);
-    _getCachedUsecase = ref.read(getCachedProfileImageUsecaseProvider);
+    _repository = ref.read(profileRepositoryProvider);
 
     _loadCached();
     return const ProfileState();
   }
 
   Future<void> _loadCached() async {
-    final res = await _getCachedUsecase();
+    final res = await _repository.getProfile();
     res.fold(
       (_) {},
-      (imageUrl) {
-        if (imageUrl != null && imageUrl.isNotEmpty) {
-          state = state.copyWith(
-            status: ProfileStatus.loaded,
-            profileImageUrl: imageUrl,
-            errorMessage: null,
-          );
-        }
+      (profile) {
+        state = state.copyWith(
+          status: ProfileStatus.loaded,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          email: profile.email,
+          profileImageUrl: profile.imageUrl,
+          bloodGroup: profile.bloodGroup,
+          phoneNumber: profile.phoneNumber,
+          emergencyContact: profile.emergencyContact,
+          errorMessage: null,
+        );
       },
     );
   }
@@ -49,7 +54,6 @@ class ProfileViewModel extends Notifier<ProfileState> {
         );
       },
       (imageUrl) {
-        // upload returns "/uploads/xyz.jpg"
         state = state.copyWith(
           status: ProfileStatus.loaded,
           profileImageUrl: imageUrl,
@@ -58,26 +62,106 @@ class ProfileViewModel extends Notifier<ProfileState> {
       },
     );
   }
-  void setBloodGroup(String bloodGroup) {
-    state = state.copyWith(
-      status: ProfileStatus.loaded,
-      bloodGroup: bloodGroup,
-      errorMessage: null,
-    );
-  }
-  void setPhoneNumber(String phone) {
-    state = state.copyWith(
-      status: ProfileStatus.loaded,
-      phoneNumber: phone,
-      errorMessage: null,
+
+  Future<void> setBloodGroup(String bloodGroup) async {
+    state = state.copyWith(status: ProfileStatus.loading, errorMessage: null);
+
+    final result =
+        await _repository.updateProfile({'bloodGroup': bloodGroup});
+
+    result.fold(
+      (failure) {
+        state = state.copyWith(
+          status: ProfileStatus.error,
+          errorMessage: failure.message,
+        );
+      },
+      (_) {
+        state = state.copyWith(
+          status: ProfileStatus.loaded,
+          bloodGroup: bloodGroup,
+          errorMessage: null,
+        );
+      },
     );
   }
 
-  void setEmergencyContact(String contact) {
-    state = state.copyWith(
-      status: ProfileStatus.loaded,
-      emergencyContact: contact,
-      errorMessage: null,
+  Future<void> setPhoneNumber(String phone) async {
+    state = state.copyWith(status: ProfileStatus.loading, errorMessage: null);
+
+    final result =
+        await _repository.updateProfile({'phoneNumber': phone});
+
+    result.fold(
+      (failure) {
+        state = state.copyWith(
+          status: ProfileStatus.error,
+          errorMessage: failure.message,
+        );
+      },
+      (_) {
+        state = state.copyWith(
+          status: ProfileStatus.loaded,
+          phoneNumber: phone,
+          errorMessage: null,
+        );
+      },
+    );
+  }
+
+  Future<void> setBasicInfo({
+    required String firstName,
+    required String lastName,
+    required String email,
+  }) async {
+    state = state.copyWith(status: ProfileStatus.loading, errorMessage: null);
+
+    final result = await _repository.updateProfile({
+      'firstName': firstName,
+      'lastName': lastName,
+      'email': email,
+    });
+
+    result.fold(
+      (failure) {
+        state = state.copyWith(
+          status: ProfileStatus.error,
+          errorMessage: failure.message,
+        );
+      },
+      (_) {
+        state = state.copyWith(
+          status: ProfileStatus.loaded,
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          errorMessage: null,
+        );
+      },
+    );
+  }
+
+  Future<void> setEmergencyContact(String contact) async {
+    state = state.copyWith(status: ProfileStatus.loading, errorMessage: null);
+
+    final result = await _repository.updateProfile({
+      'emergencyContact': contact,
+    });
+
+    result.fold(
+      (failure) {
+        state = state.copyWith(
+          status: ProfileStatus.error,
+          errorMessage: failure.message,
+        );
+      },
+      (_) {
+        state = state.copyWith(
+          status: ProfileStatus.loaded,
+          emergencyContact: contact,
+          errorMessage: null,
+        );
+      },
     );
   }
 }

@@ -175,28 +175,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _editBloodGroup(String? current) async {
-    final controller = TextEditingController(text: current ?? "");
+    const bloodTypes = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
 
     final result = await showDialog<String?>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Blood Group"),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: "e.g. O+, A-, B+",
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text("Save"),
-          ),
-        ],
+      builder: (_) => SimpleDialog(
+        title: const Text("Select Blood Group"),
+        children: bloodTypes.map((type) {
+          return SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, type),
+            child: Row(
+              children: [
+                Icon(
+                  current == type ? Icons.check_circle : Icons.circle_outlined,
+                  color: current == type ? Colors.redAccent : Colors.grey,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  type,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight:
+                        current == type ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
 
@@ -269,6 +276,77 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<void> _editBasicInfo({
+    required String currentFirstName,
+    required String currentLastName,
+    required String currentEmail,
+  }) async {
+    final firstNameController = TextEditingController(text: currentFirstName);
+    final lastNameController = TextEditingController(text: currentLastName);
+    final emailController = TextEditingController(text: currentEmail);
+
+    final result = await showDialog<Map<String, String>?>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit Basic Information'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: firstNameController,
+                decoration: const InputDecoration(labelText: 'First Name'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: lastNameController,
+                decoration: const InputDecoration(labelText: 'Last Name'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final firstName = firstNameController.text.trim();
+              final lastName = lastNameController.text.trim();
+              final email = emailController.text.trim();
+
+              if (firstName.isEmpty || lastName.isEmpty || !email.contains('@')) {
+                return;
+              }
+
+              Navigator.pop(context, {
+                'firstName': firstName,
+                'lastName': lastName,
+                'email': email,
+              });
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      await ref.read(profileViewModelProvider.notifier).setBasicInfo(
+            firstName: result['firstName']!,
+            lastName: result['lastName']!,
+            email: result['email']!,
+          );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authViewModelProvider);
@@ -299,8 +377,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     final user = authState.authEntity!;
-    final fullName = "${user.firstName} ${user.lastName}".trim();
-    final email = user.email;
+    final firstName = profileState.firstName ?? user.firstName;
+    final lastName = profileState.lastName ?? user.lastName;
+    final email = profileState.email ?? user.email;
+    final fullName = "$firstName $lastName".trim();
     final username = user.email.split('@').first;
 
     // Priority: profileImageUrl (uploaded) > authEntity.imageUrl (from backend) > null
@@ -415,45 +495,63 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             _SectionCard(
               title: "Basic Information",
+              trailing: IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () => _editBasicInfo(
+                  currentFirstName: firstName,
+                  currentLastName: lastName,
+                  currentEmail: email,
+                ),
+              ),
               children: [
                 _InfoTile(label: "Full Name", value: fullName),
                 _InfoTile(label: "Email", value: email),
                 _InfoTile(label: "Username", value: username),
+                _InfoTile(
+                    label: "Role",
+                    value: user.role[0].toUpperCase() +
+                        user.role.substring(1)),
               ],
             ),
 
             const SizedBox(height: 14),
 
-            _SectionCard(
-              title: "Health & Emergency",
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text("Blood Group"),
-                  subtitle: Text(profileState.bloodGroup ?? "Tap to set"),
-                  trailing: const Icon(Icons.edit),
-                  onTap: () => _editBloodGroup(profileState.bloodGroup),
-                ),
-                const Divider(height: 1),
-                ListTile(
-  contentPadding: EdgeInsets.zero,
-  title: const Text("Phone Number"),
-  subtitle: Text(profileState.phoneNumber ?? "Tap to set"),
-  trailing: const Icon(Icons.edit),
-  onTap: () => _editPhoneNumber(profileState.phoneNumber),
-),
-const Divider(height: 1),
-
-ListTile(
-  contentPadding: EdgeInsets.zero,
-  title: const Text("Emergency Contact"),
-  subtitle: Text(profileState.emergencyContact ?? "Tap to set"),
-  trailing: const Icon(Icons.edit),
-  onTap: () => _editEmergencyContact(profileState.emergencyContact),
-),
-
-              ],
-            ),
+            Builder(builder: (context) {
+              final bloodGroup =
+                  profileState.bloodGroup ?? user.bloodGroup;
+              final phoneNumber =
+                  profileState.phoneNumber ?? user.phoneNumber;
+              return _SectionCard(
+                title: "Health & Emergency",
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text("Blood Group"),
+                    subtitle: Text(bloodGroup ?? "Tap to set"),
+                    trailing: const Icon(Icons.edit),
+                    onTap: () => _editBloodGroup(bloodGroup),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text("Phone Number"),
+                    subtitle: Text(phoneNumber ?? "Tap to set"),
+                    trailing: const Icon(Icons.edit),
+                    onTap: () => _editPhoneNumber(phoneNumber),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text("Emergency Contact"),
+                    subtitle:
+                        Text(profileState.emergencyContact ?? "Tap to set"),
+                    trailing: const Icon(Icons.edit),
+                    onTap: () =>
+                        _editEmergencyContact(profileState.emergencyContact),
+                  ),
+                ],
+              );
+            }),
 
             const SizedBox(height: 14),
 
@@ -503,9 +601,10 @@ ListTile(
 
 class _SectionCard extends StatelessWidget {
   final String title;
+  final Widget? trailing;
   final List<Widget> children;
 
-  const _SectionCard({required this.title, required this.children});
+  const _SectionCard({required this.title, this.trailing, required this.children});
 
   @override
   Widget build(BuildContext context) {
@@ -526,7 +625,17 @@ class _SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+              if (trailing != null) trailing!,
+            ],
+          ),
           const SizedBox(height: 10),
           ...children,
         ],

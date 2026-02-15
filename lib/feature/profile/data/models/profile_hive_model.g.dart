@@ -22,13 +22,16 @@ class ProfileHiveModelAdapter extends TypeAdapter<ProfileHiveModel> {
       lastName: fields[2] as String,
       email: fields[3] as String,
       imageUrl: fields[4] as String?,
+      bloodGroup: fields[5] as String?,
+      phoneNumber: fields[6] as String?,
+      emergencyContact: fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ProfileHiveModel obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.userId)
       ..writeByte(1)
@@ -38,7 +41,13 @@ class ProfileHiveModelAdapter extends TypeAdapter<ProfileHiveModel> {
       ..writeByte(3)
       ..write(obj.email)
       ..writeByte(4)
-      ..write(obj.imageUrl);
+      ..write(obj.imageUrl)
+      ..writeByte(5)
+      ..write(obj.bloodGroup)
+      ..writeByte(6)
+      ..write(obj.phoneNumber)
+      ..writeByte(7)
+      ..write(obj.emergencyContact);
   }
 
   @override
