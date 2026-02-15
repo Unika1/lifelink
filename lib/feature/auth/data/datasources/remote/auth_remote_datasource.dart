@@ -106,4 +106,20 @@ class AuthRemoteDatasource implements IAuthRemoteDataSource {
   Future<AuthApiModel> getUserById(String authId) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    await _apiClient.post(
+      ApiEndpoints.requestPasswordReset,
+      data: {'email': email},
+    );
+  }
+
+  @override
+  Future<void> resetPassword(String token, String newPassword) async {
+    await _apiClient.post(
+      ApiEndpoints.resetPassword(token),
+      data: {'newPassword': newPassword},
+    );
+  }
 }

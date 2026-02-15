@@ -94,4 +94,42 @@ class AuthRepository implements IAuthRepository {
       return Left(ApiFailure(message: e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, bool>> requestPasswordReset(String email) async {
+    try {
+      await _authRemoteDataSource.requestPasswordReset(email);
+      return const Right(true);
+    } on DioException catch (e) {
+      return Left(
+        ApiFailure(
+          message: e.response?.data['message']?.toString() ??
+              'Password reset request failed',
+          statusCode: e.response?.statusCode,
+        ),
+      );
+    } catch (e) {
+      return Left(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> resetPassword(
+    String token,
+    String newPassword,
+  ) async {
+    try {
+      await _authRemoteDataSource.resetPassword(token, newPassword);
+      return const Right(true);
+    } on DioException catch (e) {
+      return Left(
+        ApiFailure(
+          message: e.response?.data['message']?.toString() ?? 'Reset failed',
+          statusCode: e.response?.statusCode,
+        ),
+      );
+    } catch (e) {
+      return Left(ApiFailure(message: e.toString()));
+    }
+  }
 }

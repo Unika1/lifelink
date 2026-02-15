@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifelink/common/my_snackbar.dart';
+import 'package:lifelink/feature/auth/presentation/pages/forgot_password_screen.dart';
 import 'package:lifelink/feature/auth/presentation/pages/register_screen.dart';
 import 'package:lifelink/feature/auth/presentation/state/auth_state.dart';
 import 'package:lifelink/feature/auth/presentation/view_model/auth_view_model.dart';
-import 'package:lifelink/feature/home/pages/dashboard_screen.dart';
-import 'package:lifelink/feature/hospital_dashboard/presentation/pages/hospital_dashboard_screen.dart';
+import 'package:lifelink/feature/home/presentation/pages/dashboard_screen.dart';
+import 'package:lifelink/feature/hospital/presentation/pages/dashboard/hospital_requests_screen.dart';
 import 'package:lifelink/widgets/my_button.dart';
 import 'package:lifelink/widgets/my_textformfield.dart';
 
@@ -54,7 +55,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (next.status == AuthStatus.authenticated) {
         final role = next.authEntity?.role ?? 'donor';
         final Widget destination = role == 'hospital'
-            ? const HospitalDashboardScreen()
+          ? const HospitalRequestsScreen()
             : const DashboardScreen();
 
         Navigator.pushReplacement(
@@ -171,7 +172,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordScreen(),
+                        ),
+                      );
+                    },
                     child: const Text(
                       "Forgot Password?",
                       style: TextStyle(color: Colors.redAccent),

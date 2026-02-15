@@ -6,16 +6,15 @@ import 'package:lifelink/feature/auth/domain/entities/auth_entity.dart';
 import 'package:lifelink/feature/auth/domain/repositories/auth_repositories.dart';
 import 'package:riverpod/riverpod.dart';
 
-// Provider
-final getCurrentUsecaseProvider = Provider<GetCurrentUsecase>((ref) {
+final getCurrentUserUsecaseProvider = Provider<GetCurrentUserUsecase>((ref) {
   final authRepository = ref.read(authRepositoryProvider);
-  return GetCurrentUsecase(authRepository: authRepository);
+  return GetCurrentUserUsecase(authRepository: authRepository);
 });
 
-class GetCurrentUsecase implements UsecaseWithoutParams<AuthEntity> {
+class GetCurrentUserUsecase implements UsecaseWithoutParams<AuthEntity> {
   final IAuthRepository _authRepository;
 
-  GetCurrentUsecase({required IAuthRepository authRepository})
+  GetCurrentUserUsecase({required IAuthRepository authRepository})
       : _authRepository = authRepository;
 
   @override

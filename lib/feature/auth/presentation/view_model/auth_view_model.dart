@@ -1,6 +1,8 @@
 import 'package:lifelink/core/services/storage/user_session_service.dart';
 import 'package:lifelink/feature/auth/domain/usecases/login_usecase.dart';
+import 'package:lifelink/feature/auth/domain/usecases/request_password_reset_usecase.dart';
 import 'package:lifelink/feature/auth/domain/usecases/register_usecase.dart';
+import 'package:lifelink/feature/auth/domain/usecases/reset_password_usecase.dart';
 import 'package:lifelink/feature/auth/presentation/state/auth_state.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -11,12 +13,16 @@ final authViewModelProvider = NotifierProvider<AuthViewModel, AuthState>(
 class AuthViewModel extends Notifier<AuthState> {
   late final RegisterUsecase _registerUsecase;
   late final LoginUsecase _loginUsecase;
+  late final RequestPasswordResetUsecase _requestPasswordResetUsecase;
+  late final ResetPasswordUsecase _resetPasswordUsecase;
   late final UserSessionService _userSessionService;
 
   @override
   AuthState build() {
     _registerUsecase = ref.read(registerUsecaseProvider);
     _loginUsecase = ref.read(loginUsecaseProvider);
+    _requestPasswordResetUsecase = ref.read(requestPasswordResetUsecaseProvider);
+    _resetPasswordUsecase = ref.read(resetPasswordUsecaseProvider);
     _userSessionService = ref.read(userSessionServiceProvider);
     return AuthState();
   }
@@ -105,6 +111,62 @@ class AuthViewModel extends Notifier<AuthState> {
       status: AuthStatus.initial,
       authEntity: null,
       errorMessage: null,
+    );
+  }
+
+  Future<bool> requestPasswordReset({required String email}) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null, message: null);
+
+    final params = RequestPasswordResetUsecaseParams(email: email);
+    final result = await _requestPasswordResetUsecase(params);
+
+    return result.fold(
+      (failure) {
+        state = state.copyWith(
+          status: AuthStatus.error,
+          errorMessage: failure.message,
+        );
+        return false;
+      },
+      (_) {
+        state = state.copyWith(
+          status: AuthStatus.message,
+          message: 'If the email is registered, a reset link has been sent.',
+          errorMessage: null,
+        );
+        return true;
+      },
+    );
+  }
+
+  Future<bool> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null, message: null);
+
+    final params = ResetPasswordUsecaseParams(
+      token: token,
+      newPassword: newPassword,
+    );
+    final result = await _resetPasswordUsecase(params);
+
+    return result.fold(
+      (failure) {
+        state = state.copyWith(
+          status: AuthStatus.error,
+          errorMessage: failure.message,
+        );
+        return false;
+      },
+      (_) {
+        state = state.copyWith(
+          status: AuthStatus.message,
+          message: 'Password reset successful',
+          errorMessage: null,
+        );
+        return true;
+      },
     );
   }
 }

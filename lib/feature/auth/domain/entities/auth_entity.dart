@@ -10,6 +10,7 @@ class AuthEntity extends Equatable{
   final String? confirmPassword;
   final String? token;
   final String? bloodGroup;
+  final String? phoneNumber;
   final String role; // 'donor', 'hospital', 'admin'
 
   AuthEntity({
@@ -22,6 +23,7 @@ class AuthEntity extends Equatable{
     this.confirmPassword,
     this.token,
     this.bloodGroup,
+    this.phoneNumber,
     this.role = 'donor',
   });
 
@@ -30,6 +32,6 @@ class AuthEntity extends Equatable{
   bool get isAdmin => role == 'admin';
 
   @override
-  List<Object?> get props => [authId, firstName, lastName, email, password, confirmPassword, token, imageUrl, bloodGroup, role];
+  List<Object?> get props => [authId, firstName, lastName, email, password, confirmPassword, token, imageUrl, bloodGroup, phoneNumber, role];
 
 }

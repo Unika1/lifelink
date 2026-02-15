@@ -10,6 +10,7 @@ class AuthApiModel {
   final String? token;
   final String? imageUrl;
   final String? bloodGroup;
+  final String? phoneNumber;
   final String role;
 
   AuthApiModel({
@@ -22,6 +23,7 @@ class AuthApiModel {
     this.token,
     this.imageUrl,
     this.bloodGroup,
+    this.phoneNumber,
     this.role = 'donor',
   });
 
@@ -44,6 +46,7 @@ class AuthApiModel {
       token: json['token'],
       imageUrl: json['imageUrl'],
       bloodGroup: json['bloodGroup'],
+      phoneNumber: json['phoneNumber'],
       role: json['role'] ?? 'donor',
     );
   }
@@ -57,6 +60,7 @@ class AuthApiModel {
       token: token,
       imageUrl: imageUrl,
       bloodGroup: bloodGroup,
+      phoneNumber: phoneNumber,
       role: role,
     );
   }
