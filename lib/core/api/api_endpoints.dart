@@ -42,16 +42,37 @@ class ApiEndpoints {
     }
   }
 
-  static const Duration connectionTimeout = Duration(seconds: 30);
-  static const Duration receiveTimeout = Duration(seconds: 30);
+  static const Duration connectionTimeout = Duration(seconds: 60);
+  static const Duration receiveTimeout = Duration(seconds: 60);
 
   // ============ Auth ============
   static const String register = '/auth/register';
   static const String login = '/auth/login';
+  static const String requestPasswordReset = '/auth/request-password-reset';
+  static String resetPassword(String token) => '/auth/reset-password/$token';
 
   // ============ Profile ============
   static const String updateProfile = '/auth/update-profile';
   static const String me = '/auth/me';
+
+  // ============ Hospitals ============
+  static const String hospitals = '/hospitals';
+  static String hospitalById(String id) => '/hospitals/$id';
+  static String hospitalInventory(String id) => '/hospitals/$id/inventory';
+  static const String donors = '/hospitals/donors';
+
+  // ============ Blood Requests ============
+  static const String bloodRequests = '/requests';
+  static String bloodRequestById(String id) => '/requests/$id';
+
+  // ============ Organ Requests ============
+  static const String organRequests = '/organ-requests';
+  static String organRequestById(String id) => '/organ-requests/$id';
+
+  // ============ Eligibility ============
+  static const String eligibilitySubmit = '/eligibility/submit';
+  static const String eligibilityCheck = '/eligibility/check';
+  static const String eligibilityQuestionnaire = '/eligibility/questionnaire';
 
   /// If backend returns "/uploads/xyz.jpg"
   /// this makes "http://IP:5050/uploads/xyz.jpg"

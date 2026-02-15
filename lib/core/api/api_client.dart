@@ -14,6 +14,7 @@ class ApiClient {
       BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
         connectTimeout: ApiEndpoints.connectionTimeout,
+        sendTimeout: ApiEndpoints.connectionTimeout,
         receiveTimeout: ApiEndpoints.receiveTimeout,
         headers: {
           'Content-Type': 'application/json',
@@ -26,8 +27,9 @@ class ApiClient {
   Future<Response> post(
     String path, {
     dynamic data,
+    Options? options,
   }) async {
-    return dio.post(path, data: data);
+    return dio.post(path, data: data, options: options);
   }
    Future<Response> get(
     String path, {
@@ -36,6 +38,21 @@ class ApiClient {
   }) async {
     return dio.get(path, queryParameters: query, options: options);
   }
+  Future<Response> put(
+    String path, {
+    dynamic data,
+    Options? options,
+  }) async {
+    return dio.put(path, data: data, options: options);
+  }
+
+  Future<Response> delete(
+    String path, {
+    Options? options,
+  }) async {
+    return dio.delete(path, options: options);
+  }
+
   //for image upload
   Future<Response> uploadFile(
     String path, {
