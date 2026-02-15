@@ -91,6 +91,9 @@ Future<AuthHiveModel?>loginUser(String email, String password) async {
         lastName: profile.lastName,
         email: profile.email,
         imageUrl: imageUrl,
+        bloodGroup: profile.bloodGroup,
+        phoneNumber: profile.phoneNumber,
+        emergencyContact: profile.emergencyContact,
       );
       await _profileBox.put(userId, updated);
     }

@@ -14,6 +14,7 @@ class UserSessionService {
 
   static const _keyIsLoggedIn = "is_logged_in";
   static const _keyUserId = "user_id";
+  static const _keyUserRole = "user_role";
 
   bool isLoggedIn() {
     return _prefs.getBool(_keyIsLoggedIn) ?? false;
@@ -23,13 +24,19 @@ class UserSessionService {
     return _prefs.getString(_keyUserId);
   }
 
-  Future<void> setLoggedIn(String userId) async {
+  String getUserRole() {
+    return _prefs.getString(_keyUserRole) ?? 'donor';
+  }
+
+  Future<void> setLoggedIn(String userId, {String role = 'donor'}) async {
     await _prefs.setBool(_keyIsLoggedIn, true);
     await _prefs.setString(_keyUserId, userId);
+    await _prefs.setString(_keyUserRole, role);
   }
 
   Future<void> logout() async {
     await _prefs.remove(_keyIsLoggedIn);
     await _prefs.remove(_keyUserId);
+    await _prefs.remove(_keyUserRole);
   }
 }
