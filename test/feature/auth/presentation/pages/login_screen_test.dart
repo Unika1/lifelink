@@ -3,23 +3,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:lifelink/feature/auth/presentation/pages/login_screen.dart';
+import 'package:lifelink/feature/auth/domain/usecases/change_password_usecase.dart';
 import 'package:lifelink/feature/auth/domain/usecases/login_usecase.dart';
 import 'package:lifelink/feature/auth/domain/usecases/register_usecase.dart';
+import 'package:lifelink/feature/auth/domain/usecases/request_password_reset_usecase.dart';
+import 'package:lifelink/feature/auth/domain/usecases/reset_password_usecase.dart';
 import 'package:lifelink/core/services/storage/user_session_service.dart';
 
 
 class MockLoginUsecase extends Mock implements LoginUsecase {}
 class MockRegisterUsecase extends Mock implements RegisterUsecase {}
+class MockRequestPasswordResetUsecase extends Mock implements RequestPasswordResetUsecase {}
+class MockResetPasswordUsecase extends Mock implements ResetPasswordUsecase {}
+class MockChangePasswordUsecase extends Mock implements ChangePasswordUsecase {}
 class MockUserSessionService extends Mock implements UserSessionService {}
 
 void main() {
   late MockLoginUsecase mockLoginUsecase;
   late MockRegisterUsecase mockRegisterUsecase;
+  late MockRequestPasswordResetUsecase mockRequestPasswordResetUsecase;
+  late MockResetPasswordUsecase mockResetPasswordUsecase;
+  late MockChangePasswordUsecase mockChangePasswordUsecase;
   late MockUserSessionService mockUserSessionService;
 
   setUp(() {
     mockLoginUsecase = MockLoginUsecase();
     mockRegisterUsecase = MockRegisterUsecase();
+    mockRequestPasswordResetUsecase = MockRequestPasswordResetUsecase();
+    mockResetPasswordUsecase = MockResetPasswordUsecase();
+    mockChangePasswordUsecase = MockChangePasswordUsecase();
     mockUserSessionService = MockUserSessionService();
   });
 
@@ -28,6 +40,10 @@ void main() {
       overrides: [
         loginUsecaseProvider.overrideWithValue(mockLoginUsecase),
         registerUsecaseProvider.overrideWithValue(mockRegisterUsecase),
+        requestPasswordResetUsecaseProvider
+            .overrideWithValue(mockRequestPasswordResetUsecase),
+        resetPasswordUsecaseProvider.overrideWithValue(mockResetPasswordUsecase),
+        changePasswordUsecaseProvider.overrideWithValue(mockChangePasswordUsecase),
         userSessionServiceProvider.overrideWithValue(mockUserSessionService),
       ],
       child: const MaterialApp(home: LoginScreen()),
