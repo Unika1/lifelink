@@ -50,6 +50,7 @@ class ApiEndpoints {
   static const String login = '/auth/login';
   static const String requestPasswordReset = '/auth/request-password-reset';
   static String resetPassword(String token) => '/auth/reset-password/$token';
+  static const String changePassword = '/auth/change-password';
 
   // ============ Profile ============
   static const String updateProfile = '/auth/update-profile';

@@ -1,4 +1,5 @@
 import 'package:lifelink/core/services/storage/user_session_service.dart';
+import 'package:lifelink/feature/auth/domain/usecases/change_password_usecase.dart';
 import 'package:lifelink/feature/auth/domain/usecases/login_usecase.dart';
 import 'package:lifelink/feature/auth/domain/usecases/request_password_reset_usecase.dart';
 import 'package:lifelink/feature/auth/domain/usecases/register_usecase.dart';
@@ -15,6 +16,7 @@ class AuthViewModel extends Notifier<AuthState> {
   late final LoginUsecase _loginUsecase;
   late final RequestPasswordResetUsecase _requestPasswordResetUsecase;
   late final ResetPasswordUsecase _resetPasswordUsecase;
+  late final ChangePasswordUsecase _changePasswordUsecase;
   late final UserSessionService _userSessionService;
 
   @override
@@ -23,6 +25,7 @@ class AuthViewModel extends Notifier<AuthState> {
     _loginUsecase = ref.read(loginUsecaseProvider);
     _requestPasswordResetUsecase = ref.read(requestPasswordResetUsecaseProvider);
     _resetPasswordUsecase = ref.read(resetPasswordUsecaseProvider);
+    _changePasswordUsecase = ref.read(changePasswordUsecaseProvider);
     _userSessionService = ref.read(userSessionServiceProvider);
     return AuthState();
   }
@@ -168,5 +171,44 @@ class AuthViewModel extends Notifier<AuthState> {
         return true;
       },
     );
+  }
+
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null, message: null);
+
+    try {
+      final params = ChangePasswordUsecaseParams(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      final result = await _changePasswordUsecase(params);
+
+      return result.fold(
+        (failure) {
+          state = state.copyWith(
+            status: AuthStatus.error,
+            errorMessage: failure.message,
+          );
+          return false;
+        },
+        (_) {
+          state = state.copyWith(
+            status: AuthStatus.message,
+            message: 'Password changed successfully',
+            errorMessage: null,
+          );
+          return true;
+        },
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: 'Change password failed. Please try again.',
+      );
+      return false;
+    }
   }
 }

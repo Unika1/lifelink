@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import 'package:lifelink/core/api/api_client.dart';
 import 'package:lifelink/core/api/api_endpoints.dart';
 import 'package:lifelink/core/services/storage/token_service.dart';
@@ -96,7 +97,6 @@ class AuthRemoteDatasource implements IAuthRemoteDataSource {
       // Fallback: assume registration succeeded
       return user;
     } catch (e) {
-      print('Register error: $e');
       rethrow;
     }
   }
@@ -120,6 +120,25 @@ class AuthRemoteDatasource implements IAuthRemoteDataSource {
     await _apiClient.post(
       ApiEndpoints.resetPassword(token),
       data: {'newPassword': newPassword},
+    );
+  }
+
+  @override
+  Future<void> changePassword(
+    String token,
+    String currentPassword,
+    String newPassword,
+  ) async {
+    await _apiClient.put(
+      ApiEndpoints.changePassword,
+      data: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+        'confirmNewPassword': newPassword,
+      },
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+      ),
     );
   }
 }

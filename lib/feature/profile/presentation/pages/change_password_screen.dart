@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifelink/common/my_snackbar.dart';
+import 'package:lifelink/feature/auth/presentation/state/auth_state.dart';
+import 'package:lifelink/feature/auth/presentation/view_model/auth_view_model.dart';
 import 'package:lifelink/widgets/my_button.dart';
 import 'package:lifelink/widgets/my_textformfield.dart';
 
-class ChangePasswordScreen extends StatefulWidget {
+class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
 
   @override
-  State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
+  ConsumerState<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
 }
 
-class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
+class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   final oldController = TextEditingController();
   final newController = TextEditingController();
   final confirmController = TextEditingController();
@@ -24,10 +27,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     super.dispose();
   }
 
-  void _updatePassword() {
+  Future<void> _updatePassword() async {
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) return;
 
+    final oldPass = oldController.text.trim();
     final newPass = newController.text.trim();
     final confirm = confirmController.text.trim();
 
@@ -40,18 +44,49 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return;
     }
 
-    // For this sprint: UI only
-    showMySnackBar(
-      context: context,
-      message: "Password updated (UI only). API will be added next sprint.",
-      color: Colors.green,
-    );
+    if (oldPass == newPass) {
+      showMySnackBar(
+        context: context,
+        message: 'New password must be different from old password',
+        color: Colors.redAccent,
+      );
+      return;
+    }
 
-    Navigator.pop(context);
+    final success = await ref
+        .read(authViewModelProvider.notifier)
+        .changePassword(
+          currentPassword: oldPass,
+          newPassword: newPass,
+        );
+
+    if (!mounted) return;
+
+    if (success) {
+      showMySnackBar(
+        context: context,
+        message: 'Password changed successfully',
+        color: Colors.green,
+      );
+      Navigator.pop(context);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authViewModelProvider);
+
+    ref.listen<AuthState>(authViewModelProvider, (prev, next) {
+      if (!mounted) return;
+      if (next.status == AuthStatus.error && next.errorMessage != null) {
+        showMySnackBar(
+          context: context,
+          message: next.errorMessage!,
+          color: Colors.redAccent,
+        );
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(title: const Text("Change Password")),
       body: SingleChildScrollView(
@@ -65,6 +100,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 hintText: "Enter old password",
                 controller: oldController,
                 obscureText: true,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Old password is required';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 14),
               MyTextformfield(
@@ -72,6 +113,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 hintText: "Enter new password",
                 controller: newController,
                 obscureText: true,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'New password is required';
+                  }
+                  if (value.trim().length < 6) {
+                    return 'Password must be at least 6 characters';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 14),
               MyTextformfield(
@@ -79,15 +129,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 hintText: "Re-enter new password",
                 controller: confirmController,
                 obscureText: true,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Confirm password is required';
+                  }
+                  if (value.trim() != newController.text.trim()) {
+                    return 'Passwords do not match';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 22),
 
               SizedBox(
                 width: double.infinity,
                 child: MyButton(
-                  text: "Update Password",
+                  text: authState.status == AuthStatus.loading
+                      ? 'Updating...'
+                      : "Update Password",
                   color: Colors.redAccent,
-                  onPressed: _updatePassword,
+                  onPressed:
+                      authState.status == AuthStatus.loading ? null : _updatePassword,
                 ),
               ),
             ],
