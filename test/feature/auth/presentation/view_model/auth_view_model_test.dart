@@ -246,6 +246,23 @@ void main() {
       verify(() => mockResetPasswordUsecase(any())).called(1);
     });
 
+    test('changePassword success emits success message', () async {
+      when(() => mockChangePasswordUsecase(any()))
+          .thenAnswer((_) async => const Right(true));
+
+      final viewModel = container.read(authViewModelProvider.notifier);
+      final result = await viewModel.changePassword(
+        currentPassword: 'oldPassword123',
+        newPassword: 'newPassword123',
+      );
+
+      final state = container.read(authViewModelProvider);
+      expect(result, isTrue);
+      expect(state.status, AuthStatus.message);
+      expect(state.message, 'Password changed successfully');
+      verify(() => mockChangePasswordUsecase(any())).called(1);
+    });
+
     test('changePassword failure emits error state', () async {
       const failure = ApiFailure(message: 'Invalid current password', statusCode: 400);
       when(() => mockChangePasswordUsecase(any()))
