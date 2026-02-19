@@ -10,6 +10,25 @@ import 'package:lifelink/feature/organ_donation_request/domain/entities/organ_re
 import 'package:lifelink/feature/organ_donation_request/domain/repositories/i_organ_request_repository.dart';
 import 'package:riverpod/riverpod.dart';
 
+String _extractDioMessage(DioException e, String fallback) {
+  final data = e.response?.data;
+  if (data is Map) {
+    final message = data['message'];
+    if (message != null && message.toString().trim().isNotEmpty) {
+      return message.toString();
+    }
+  } else if (data is String && data.trim().isNotEmpty) {
+    return data;
+  }
+
+  final dioMessage = e.message;
+  if (dioMessage != null && dioMessage.trim().isNotEmpty) {
+    return dioMessage;
+  }
+
+  return fallback;
+}
+
 final organRequestRepositoryProvider = Provider<IOrganRequestRepository>((ref) {
   return OrganRequestRepository(
     remoteDataSource: ref.read(organRequestRemoteDataSourceProvider),
@@ -43,8 +62,7 @@ class OrganRequestRepository implements IOrganRequestRepository {
       debugPrint('Response: ${e.response?.data}');
       return Left(
         ApiFailure(
-          message: e.response?.data['message']?.toString() ??
-              'Failed to create request',
+          message: _extractDioMessage(e, 'Failed to create request'),
           statusCode: e.response?.statusCode,
         ),
       );
@@ -73,8 +91,7 @@ class OrganRequestRepository implements IOrganRequestRepository {
     } on DioException catch (e) {
       return Left(
         ApiFailure(
-          message: e.response?.data['message']?.toString() ??
-              'Failed to fetch requests',
+          message: _extractDioMessage(e, 'Failed to fetch requests'),
           statusCode: e.response?.statusCode,
         ),
       );
@@ -91,8 +108,7 @@ class OrganRequestRepository implements IOrganRequestRepository {
     } on DioException catch (e) {
       return Left(
         ApiFailure(
-          message: e.response?.data['message']?.toString() ??
-              'Failed to fetch request',
+          message: _extractDioMessage(e, 'Failed to fetch request'),
           statusCode: e.response?.statusCode,
         ),
       );
@@ -104,9 +120,9 @@ class OrganRequestRepository implements IOrganRequestRepository {
   @override
   Future<Either<Failure, OrganRequestEntity>> updateRequest(
     String id,
-    OrganRequestEntity request,
-    {File? reportFile}
-  ) async {
+    OrganRequestEntity request, {
+    File? reportFile,
+  }) async {
     try {
       final apiModel = OrganRequestApiModel.fromEntity(request);
       final result = await _remoteDataSource.updateRequest(
@@ -118,8 +134,7 @@ class OrganRequestRepository implements IOrganRequestRepository {
     } on DioException catch (e) {
       return Left(
         ApiFailure(
-          message: e.response?.data['message']?.toString() ??
-              'Failed to update request',
+          message: _extractDioMessage(e, 'Failed to update request'),
           statusCode: e.response?.statusCode,
         ),
       );
@@ -136,8 +151,7 @@ class OrganRequestRepository implements IOrganRequestRepository {
     } on DioException catch (e) {
       return Left(
         ApiFailure(
-          message: e.response?.data['message']?.toString() ??
-              'Failed to delete request',
+          message: _extractDioMessage(e, 'Failed to delete request'),
           statusCode: e.response?.statusCode,
         ),
       );

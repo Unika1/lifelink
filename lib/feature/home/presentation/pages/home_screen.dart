@@ -6,12 +6,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:light/light.dart';
+import 'package:lifelink/core/services/storage/user_session_service.dart';
 import 'package:lifelink/feature/auth/presentation/pages/login_screen.dart';
 import 'package:lifelink/feature/auth/presentation/view_model/auth_view_model.dart';
+import 'package:lifelink/feature/blood_donation_request/domain/entities/blood_request_entity.dart';
 import 'package:lifelink/feature/blood_banks/presentation/pages/blood_bank_map_screen.dart';
-import 'package:lifelink/feature/hospital/presentation/pages/hospital_map_screen.dart';
+import 'package:lifelink/feature/blood_donation_request/presentation/view_model/blood_request_view_model.dart';
+import 'package:lifelink/feature/hospital/presentation/pages/hospital_requests_screen.dart';
+import 'package:lifelink/feature/nearbyhospital/presentation/pages/nearbyhospital_screen.dart';
+import 'package:lifelink/feature/organ_donation_request/domain/entities/organ_request_entity.dart';
+import 'package:lifelink/feature/organ_donation_request/presentation/view_model/organ_request_view_model.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+
+class _HomeNotificationItem {
+  final String id;
+  final String title;
+  final String message;
+  final String status;
+  final DateTime? timestamp;
+
+  const _HomeNotificationItem({
+    required this.id,
+    required this.title,
+    required this.message,
+    required this.status,
+    required this.timestamp,
+  });
+}
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -48,6 +70,202 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _loadCurrentLocation();
     _startShakeSensor();
     _startLightSensor();
+  }
+
+  void _openNearbyHospitals() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NearbyHospitalPage()),
+    );
+  }
+
+  void _openHospitalSection() {
+    final role = ref.read(authViewModelProvider).authEntity?.role ?? 'donor';
+
+    if (role == 'hospital') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const HospitalRequestsScreen()),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Hospital section is for hospital accounts. Use Nearby hospital to find hospitals near you.',
+        ),
+      ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'approved':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _statusLabel(String status) {
+    if (status == 'approved') return 'Approved';
+    if (status == 'rejected') return 'Rejected';
+    return status;
+  }
+
+  Future<List<_HomeNotificationItem>> _loadRequestNotifications() async {
+    final authUserId = ref.read(authViewModelProvider).authEntity?.authId;
+    final sessionUserId = ref.read(userSessionServiceProvider).getUserId();
+    final userId = authUserId ?? sessionUserId;
+
+    if (userId == null || userId.isEmpty) {
+      return [];
+    }
+
+    await ref
+        .read(bloodRequestViewModelProvider.notifier)
+        .getAllRequests(requestedBy: userId);
+
+    await ref
+        .read(organRequestViewModelProvider.notifier)
+        .getAllRequests(requestedBy: userId);
+
+    final bloodRequests = ref.read(bloodRequestViewModelProvider).requests;
+    final organRequests = ref.read(organRequestViewModelProvider).requests;
+
+    final List<_HomeNotificationItem> items = [];
+
+    for (final BloodRequestEntity request in bloodRequests) {
+      if (request.status == 'approved' || request.status == 'rejected') {
+        items.add(
+          _HomeNotificationItem(
+            id: 'blood-${request.id ?? request.createdAt.toString()}',
+            title: 'Blood request ${_statusLabel(request.status)}',
+            message:
+                '${request.hospitalName} ${request.status} your blood request for ${request.bloodType}',
+            status: request.status,
+            timestamp: request.updatedAt ?? request.createdAt,
+          ),
+        );
+      }
+    }
+
+    for (final OrganRequestEntity request in organRequests) {
+      if (request.status == 'approved' || request.status == 'rejected') {
+        items.add(
+          _HomeNotificationItem(
+            id: 'organ-${request.id ?? request.createdAt.toString()}',
+            title: 'Organ request ${_statusLabel(request.status)}',
+            message:
+                '${request.hospitalName} ${request.status} your organ request',
+            status: request.status,
+            timestamp: request.updatedAt ?? request.createdAt,
+          ),
+        );
+      }
+    }
+
+    items.sort((a, b) {
+      final aTime = a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime = b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bTime.compareTo(aTime);
+    });
+
+    return items;
+  }
+
+  Future<void> _openNotifications() async {
+    final notifications = await _loadRequestNotifications();
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final maxSheetHeight = MediaQuery.of(context).size.height * 0.7;
+
+        return SafeArea(
+          child: SizedBox(
+            height: maxSheetHeight,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Notifications',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: notifications.isEmpty
+                        ? Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Text(
+                              'No approval/rejection updates yet',
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: notifications.length,
+                            itemBuilder: (context, index) {
+                              final item = notifications[index];
+                              return Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.notifications_active,
+                                      color: _statusColor(item.status),
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.title,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(item.message),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -295,9 +513,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () {
-              debugPrint("Notification clicked");
-            },
+            onPressed: _openNotifications,
+            tooltip: 'Notifications',
             icon: Image.asset(
               'assets/icons/notification.png',
               width: 22,
@@ -367,15 +584,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           const SizedBox(height: 18),
                           GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const HospitalMapScreen(),
-                                ),
-                              );
-                            },
+                            onTap: _openNearbyHospitals,
                             child: card(
                               child: SizedBox(
                                 height: 150,
@@ -444,15 +653,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               const SizedBox(width: 14),
                               Expanded(
                                 child: GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const HospitalMapScreen(),
-                                      ),
-                                    );
-                                  },
+                                  onTap: _openHospitalSection,
                                   child: card(
                                     child: SizedBox(
                                       height: 175,

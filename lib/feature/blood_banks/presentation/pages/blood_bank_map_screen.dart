@@ -10,7 +10,12 @@ import 'package:lifelink/feature/eligibility/presentation/pages/eligibility_ques
 import 'package:lifelink/theme/app_theme.dart';
 
 class BloodBankMapScreen extends ConsumerStatefulWidget {
-  const BloodBankMapScreen({super.key});
+  const BloodBankMapScreen({
+    super.key,
+    this.enableTileLayer = true,
+  });
+
+  final bool enableTileLayer;
 
   @override
   ConsumerState<BloodBankMapScreen> createState() => _BloodBankMapScreenState();
@@ -25,6 +30,7 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
   String? _selectedBloodType;
 
   static const LatLng _defaultLocation = LatLng(27.7172, 85.3240);
+  static const double _nearbyRadiusKm = 25;
 
   static const List<String> _bloodTypes = [
     'A+',
@@ -41,9 +47,6 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
   void initState() {
     super.initState();
     _initializeLocation();
-    Future.microtask(() {
-      ref.read(bloodBankViewModelProvider.notifier).getAllBloodBanks();
-    });
   }
 
   Future<void> _initializeLocation() async {
@@ -54,6 +57,7 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
           _isLoadingLocation = false;
           _locationError = 'Location services are disabled';
         });
+        await ref.read(bloodBankViewModelProvider.notifier).getAllBloodBanks();
         return;
       }
 
@@ -65,6 +69,7 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
             _isLoadingLocation = false;
             _locationError = 'Location permission denied';
           });
+          await ref.read(bloodBankViewModelProvider.notifier).getAllBloodBanks();
           return;
         }
       }
@@ -74,6 +79,7 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
           _isLoadingLocation = false;
           _locationError = 'Location permission permanently denied';
         });
+        await ref.read(bloodBankViewModelProvider.notifier).getAllBloodBanks();
         return;
       }
 
@@ -90,11 +96,18 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
       });
 
       _mapController.move(LatLng(position.latitude, position.longitude), 14);
+      await ref.read(bloodBankViewModelProvider.notifier).getAllBloodBanks(
+            latitude: position.latitude,
+            longitude: position.longitude,
+        radiusKm: _nearbyRadiusKm,
+          );
     } catch (e) {
       setState(() {
         _isLoadingLocation = false;
         _locationError = 'Could not get location';
       });
+
+      await ref.read(bloodBankViewModelProvider.notifier).getAllBloodBanks();
     }
   }
 
@@ -112,6 +125,29 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
       return bloodBank.bloodInventory.any(
         (inv) => inv.bloodType == _selectedBloodType && inv.unitsAvailable > 0,
       );
+    }).toList();
+  }
+
+  List<BloodBankEntity> _filterNearbyBloodBanks(List<BloodBankEntity> bloodBanks) {
+    if (_currentPosition == null) {
+      return bloodBanks;
+    }
+
+    final maxDistanceMeters = _nearbyRadiusKm * 1000;
+
+    return bloodBanks.where((bloodBank) {
+      if (bloodBank.location == null) {
+        return false;
+      }
+
+      final distanceInMeters = Geolocator.distanceBetween(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        bloodBank.location!.latitude,
+        bloodBank.location!.longitude,
+      );
+
+      return distanceInMeters <= maxDistanceMeters;
     }).toList();
   }
 
@@ -140,7 +176,8 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
       );
     }
 
-    final filtered = _filterByBloodType(bloodBanks);
+    final nearby = _filterNearbyBloodBanks(bloodBanks);
+    final filtered = _filterByBloodType(nearby);
 
     for (final bloodBank in filtered) {
       if (bloodBank.location != null && bloodBank.id != null) {
@@ -526,11 +563,12 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
                     initialZoom: 13,
                   ),
                   children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.unika.lifelink',
-                    ),
+                    if (widget.enableTileLayer)
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.unika.lifelink',
+                      ),
                     MarkerLayer(
                       markers: _buildMarkers(bloodBankState.bloodBanks),
                     ),
@@ -588,31 +626,6 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
                       ),
                     ),
                   ),
-                Positioned(
-                  bottom: 16,
-                  right: 16,
-                  child: FloatingActionButton.small(
-                    heroTag: 'bb_my_location',
-                    backgroundColor: Colors.white,
-                    onPressed: () {
-                      if (_currentPosition != null) {
-                        _mapController.move(
-                          LatLng(
-                            _currentPosition!.latitude,
-                            _currentPosition!.longitude,
-                          ),
-                          15,
-                        );
-                      } else {
-                        _initializeLocation();
-                      }
-                    },
-                    child: const Icon(
-                      Icons.my_location,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
@@ -639,7 +652,8 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
       );
     }
 
-    final filtered = _filterByBloodType(bloodBankState.bloodBanks);
+    final nearby = _filterNearbyBloodBanks(bloodBankState.bloodBanks);
+    final filtered = _filterByBloodType(nearby);
     final bloodBanks = _sortByDistance(filtered);
 
     if (bloodBanks.isEmpty) {
@@ -656,7 +670,7 @@ class _BloodBankMapScreenState extends ConsumerState<BloodBankMapScreen> {
             Text(
               _selectedBloodType != null
                   ? 'No blood banks with $_selectedBloodType stock'
-                  : 'No blood banks found nearby',
+                  : 'No blood banks found within ${_nearbyRadiusKm.toInt()} km',
               style: TextStyle(color: Colors.grey.shade600),
             ),
           ],

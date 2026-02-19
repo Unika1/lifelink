@@ -8,7 +8,6 @@ import 'package:lifelink/common/my_snackbar.dart';
 import 'package:lifelink/core/api/api_endpoints.dart';
 import 'package:lifelink/feature/auth/presentation/pages/login_screen.dart';
 import 'package:lifelink/feature/auth/presentation/view_model/auth_view_model.dart';
-import 'package:lifelink/feature/profile/presentation/pages/change_password_screen.dart';
 import 'package:lifelink/feature/profile/presentation/state/profile_state.dart';
 import 'package:lifelink/feature/profile/presentation/view_model/profile_view_model.dart';
 
@@ -125,7 +124,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-
   /// Upload selected media
   Future<void> _uploadSelectedMedia() async {
     if (_selectedMedia.isEmpty) {
@@ -140,7 +138,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     await ref
         .read(profileViewModelProvider.notifier)
         .uploadProfileImage(File(_selectedMedia[0].path));
-    
+
     setState(() {
       _selectedMedia.clear();
     });
@@ -196,8 +194,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   type,
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight:
-                        current == type ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: current == type
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
               ],
@@ -222,9 +221,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            hintText: "e.g. 98XXXXXXXX",
-          ),
+          decoration: const InputDecoration(hintText: "e.g. 98XXXXXXXX"),
         ),
         actions: [
           TextButton(
@@ -254,9 +251,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            hintText: "e.g. 97XXXXXXXX",
-          ),
+          decoration: const InputDecoration(hintText: "e.g. 97XXXXXXXX"),
         ),
         actions: [
           TextButton(
@@ -322,7 +317,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               final lastName = lastNameController.text.trim();
               final email = emailController.text.trim();
 
-              if (firstName.isEmpty || lastName.isEmpty || !email.contains('@')) {
+              if (firstName.isEmpty ||
+                  lastName.isEmpty ||
+                  !email.contains('@')) {
                 return;
               }
 
@@ -339,12 +336,149 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
 
     if (result != null) {
-      await ref.read(profileViewModelProvider.notifier).setBasicInfo(
+      await ref
+          .read(profileViewModelProvider.notifier)
+          .setBasicInfo(
             firstName: result['firstName']!,
             lastName: result['lastName']!,
             email: result['email']!,
           );
     }
+  }
+
+  Future<void> _showChangePasswordBottomSheet() async {
+    final formKey = GlobalKey<FormState>();
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (bottomSheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(bottomSheetContext).viewInsets.bottom + 16,
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Change Password",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: oldPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: "Old Password",
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return "Old password is required";
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: newPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: "New Password",
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return "New password is required";
+                      }
+                      if (value.trim().length < 6) {
+                        return "Password must be at least 6 characters";
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: confirmPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: "Confirm New Password",
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return "Confirm password is required";
+                      }
+                      if (value.trim() != newPasswordController.text.trim()) {
+                        return "Passwords do not match";
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final isValid =
+                            formKey.currentState?.validate() ?? false;
+                        if (!isValid) return;
+
+                        final oldPassword = oldPasswordController.text.trim();
+                        final newPassword = newPasswordController.text.trim();
+
+                        if (oldPassword == newPassword) {
+                          showMySnackBar(
+                            context: context,
+                            message:
+                                "New password must be different from old password",
+                            color: Colors.red,
+                          );
+                          return;
+                        }
+
+                        final isChanged = await ref
+                            .read(authViewModelProvider.notifier)
+                            .changePassword(
+                              currentPassword: oldPassword,
+                              newPassword: newPassword,
+                            );
+
+                        if (!mounted) return;
+
+                        if (isChanged) {
+                          Navigator.pop(bottomSheetContext);
+                          showMySnackBar(
+                            context: context,
+                            message: "Password changed successfully",
+                            color: Colors.green,
+                          );
+                        }
+                      },
+                      child: const Text("Update Password"),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    oldPasswordController.dispose();
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
   }
 
   @override
@@ -373,7 +507,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     });
 
     if (authState.authEntity == null) {
-      return const Scaffold(body: Center(child: Text("No user logged in")));
+      final isLoading =
+          profileState.status == ProfileStatus.initial ||
+          profileState.status == ProfileStatus.loading;
+
+      if (isLoading) {
+        return Scaffold(
+          appBar: AppBar(title: const Text("Profile"), centerTitle: true),
+          body: const Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      return Scaffold(
+        appBar: AppBar(title: const Text("Profile"), centerTitle: true),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(profileState.errorMessage ?? "No user logged in"),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                },
+                child: const Text("Go to Login"),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     final user = authState.authEntity!;
@@ -416,16 +582,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   fit: BoxFit.cover,
                                 )
                               : (fullImageUrl == null
-                                  ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                                  : Image.network(
-                                      fullImageUrl,
-                                      width: 100,
-                                      height: 100,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stack) {
-                                        return const Icon(Icons.person, size: 50, color: Colors.red);
-                                      },
-                                    )),
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 50,
+                                        color: Colors.grey,
+                                      )
+                                    : Image.network(
+                                        fullImageUrl,
+                                        width: 100,
+                                        height: 100,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stack) {
+                                          return const Icon(
+                                            Icons.person,
+                                            size: 50,
+                                            color: Colors.red,
+                                          );
+                                        },
+                                      )),
                         ),
                       ),
                       Positioned(
@@ -448,7 +622,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Icon(Icons.edit, color: Colors.white, size: 18),
+                                : const Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                           ),
                         ),
                       ),
@@ -457,7 +635,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 10),
                   Text(
                     fullName.isEmpty ? "User" : fullName,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(email, style: TextStyle(color: Colors.grey.shade700)),
@@ -508,50 +689,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 _InfoTile(label: "Email", value: email),
                 _InfoTile(label: "Username", value: username),
                 _InfoTile(
-                    label: "Role",
-                    value: user.role[0].toUpperCase() +
-                        user.role.substring(1)),
+                  label: "Role",
+                  value: user.role.isEmpty
+                      ? "User"
+                      : user.role[0].toUpperCase() + user.role.substring(1),
+                ),
               ],
             ),
 
             const SizedBox(height: 14),
 
-            Builder(builder: (context) {
-              final bloodGroup =
-                  profileState.bloodGroup ?? user.bloodGroup;
-              final phoneNumber =
-                  profileState.phoneNumber ?? user.phoneNumber;
-              return _SectionCard(
-                title: "Health & Emergency",
-                children: [
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text("Blood Group"),
-                    subtitle: Text(bloodGroup ?? "Tap to set"),
-                    trailing: const Icon(Icons.edit),
-                    onTap: () => _editBloodGroup(bloodGroup),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text("Phone Number"),
-                    subtitle: Text(phoneNumber ?? "Tap to set"),
-                    trailing: const Icon(Icons.edit),
-                    onTap: () => _editPhoneNumber(phoneNumber),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text("Emergency Contact"),
-                    subtitle:
-                        Text(profileState.emergencyContact ?? "Tap to set"),
-                    trailing: const Icon(Icons.edit),
-                    onTap: () =>
-                        _editEmergencyContact(profileState.emergencyContact),
-                  ),
-                ],
-              );
-            }),
+            Builder(
+              builder: (context) {
+                final bloodGroup = profileState.bloodGroup ?? user.bloodGroup;
+                final phoneNumber =
+                    profileState.phoneNumber ?? user.phoneNumber;
+                return _SectionCard(
+                  title: "Health & Emergency",
+                  children: [
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text("Blood Group"),
+                      subtitle: Text(bloodGroup ?? "Tap to set"),
+                      trailing: const Icon(Icons.edit),
+                      onTap: () => _editBloodGroup(bloodGroup),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text("Phone Number"),
+                      subtitle: Text(phoneNumber ?? "Tap to set"),
+                      trailing: const Icon(Icons.edit),
+                      onTap: () => _editPhoneNumber(phoneNumber),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text("Emergency Contact"),
+                      subtitle: Text(
+                        profileState.emergencyContact ?? "Tap to set",
+                      ),
+                      trailing: const Icon(Icons.edit),
+                      onTap: () =>
+                          _editEmergencyContact(profileState.emergencyContact),
+                    ),
+                  ],
+                );
+              },
+            ),
 
             const SizedBox(height: 14),
 
@@ -561,13 +746,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ListTile(
                   leading: const Icon(Icons.lock_outline),
                   title: const Text("Change Password"),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-                    );
-                  },
+                  trailing: const Icon(Icons.keyboard_arrow_up),
+                  onTap: _showChangePasswordBottomSheet,
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -604,7 +784,11 @@ class _SectionCard extends StatelessWidget {
   final Widget? trailing;
   final List<Widget> children;
 
-  const _SectionCard({required this.title, this.trailing, required this.children});
+  const _SectionCard({
+    required this.title,
+    this.trailing,
+    required this.children,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -630,7 +814,10 @@ class _SectionCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               if (trailing != null) trailing!,
@@ -657,8 +844,16 @@ class _InfoTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 130, child: Text(label, style: TextStyle(color: Colors.grey.shade700))),
-          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600))),
+          SizedBox(
+            width: 130,
+            child: Text(label, style: TextStyle(color: Colors.grey.shade700)),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     );

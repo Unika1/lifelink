@@ -28,6 +28,9 @@ class BloodBankViewModel extends Notifier<BloodBankState> {
 		String? filterState,
 		String? bloodType,
 		bool? isActive,
+		double? latitude,
+		double? longitude,
+		double? radiusKm,
 	}) async {
 		state = state.copyWith(status: BloodBankStatus.loading, errorMessage: null);
 
@@ -36,6 +39,9 @@ class BloodBankViewModel extends Notifier<BloodBankState> {
 			state: filterState,
 			bloodType: bloodType,
 			isActive: isActive,
+			latitude: latitude,
+			longitude: longitude,
+			radiusKm: radiusKm,
 		);
 
 		final result = await _getAllBloodBanksUsecase(params);

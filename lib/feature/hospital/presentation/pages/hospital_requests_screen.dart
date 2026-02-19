@@ -30,6 +30,7 @@ class _HospitalRequestsScreenState
   String? _statusFilter;
   String _requestType = 'blood';
   HospitalEntity? _currentHospital;
+  final Set<String> _seenNotificationIds = <String>{};
 
   @override
   void initState() {
@@ -65,8 +66,9 @@ class _HospitalRequestsScreenState
       return matchedByEmail.first;
     }
 
-    final fallbackName =
-        '${auth?.firstName ?? ''} ${auth?.lastName ?? ''}'.trim().toLowerCase();
+    final fallbackName = '${auth?.firstName ?? ''} ${auth?.lastName ?? ''}'
+        .trim()
+        .toLowerCase();
     final matchedByName = hospitals.where(
       (hospital) => hospital.name.toLowerCase() == fallbackName,
     );
@@ -91,12 +93,16 @@ class _HospitalRequestsScreenState
         ? currentHospital!.name.trim()
         : '${auth?.firstName ?? ''} ${auth?.lastName ?? ''}'.trim();
 
-    ref.read(bloodRequestViewModelProvider.notifier).getAllRequests(
+    ref
+        .read(bloodRequestViewModelProvider.notifier)
+        .getAllRequests(
           hospitalId: hospitalId,
           hospitalName: hospitalName.isEmpty ? null : hospitalName,
         );
 
-    ref.read(organRequestViewModelProvider.notifier).getAllRequests(
+    ref
+        .read(organRequestViewModelProvider.notifier)
+        .getAllRequests(
           hospitalId: hospitalId,
           hospitalName: hospitalName.isEmpty ? null : hospitalName,
         );
@@ -163,14 +169,161 @@ class _HospitalRequestsScreenState
     return '${date.day}/${date.month}/${date.year}  $hour:$minute $period';
   }
 
+  List<_HospitalNotificationItem> _buildNotifications({
+    required List<BloodRequestEntity> bloodRequests,
+    required List<OrganRequestEntity> organRequests,
+  }) {
+    final List<_HospitalNotificationItem> notifications = [];
+
+    for (final request in bloodRequests) {
+      if (request.id == null) {
+        continue;
+      }
+
+      final status = request.status.toLowerCase();
+      if (status != 'pending') {
+        continue;
+      }
+
+      final eventAt = request.createdAt ?? request.updatedAt;
+      if (eventAt == null) {
+        continue;
+      }
+
+      notifications.add(
+        _HospitalNotificationItem(
+          id: 'blood-${request.id}-${eventAt.millisecondsSinceEpoch}',
+          title: 'New blood donor request',
+          message:
+              '${request.patientName} requested ${request.unitsRequested} units of ${request.bloodType}',
+          eventAt: eventAt,
+        ),
+      );
+    }
+
+    for (final request in organRequests) {
+      if (request.id == null) {
+        continue;
+      }
+
+      final status = request.status.toLowerCase();
+      if (status != 'pending') {
+        continue;
+      }
+
+      final eventAt = request.createdAt ?? request.updatedAt;
+      if (eventAt == null) {
+        continue;
+      }
+
+      notifications.add(
+        _HospitalNotificationItem(
+          id: 'organ-${request.id}-${eventAt.millisecondsSinceEpoch}',
+          title: 'New organ donor request',
+          message: '${request.donorName} sent an organ donation request',
+          eventAt: eventAt,
+        ),
+      );
+    }
+
+    notifications.sort((a, b) => b.eventAt.compareTo(a.eventAt));
+    return notifications;
+  }
+
+  String _formatRelativeTime(DateTime dateTime) {
+    final difference = DateTime.now().difference(dateTime);
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    }
+    if (difference.inHours < 1) {
+      return '${difference.inMinutes} min ago';
+    }
+    if (difference.inDays < 1) {
+      return '${difference.inHours} h ago';
+    }
+    return '${difference.inDays} d ago';
+  }
+
+  void _openNotifications(List<_HospitalNotificationItem> notifications) {
+    setState(() {
+      for (final notification in notifications) {
+        _seenNotificationIds.add(notification.id);
+      }
+    });
+
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Notifications'),
+          content: SizedBox(
+            width: 360,
+            child: notifications.isEmpty
+                ? const Text('No notifications right now.')
+                : ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: notifications.length,
+                    separatorBuilder: (_, __) => const Divider(height: 16),
+                    itemBuilder: (context, index) {
+                      final item = notifications[index];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            item.message,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatRelativeTime(item.eventAt),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final requestState = ref.watch(bloodRequestViewModelProvider);
     final organState = ref.watch(organRequestViewModelProvider);
+    final notifications = _buildNotifications(
+      bloodRequests: requestState.requests,
+      organRequests: organState.requests,
+    );
+    final hasUnread = notifications.any(
+      (notification) => !_seenNotificationIds.contains(notification.id),
+    );
     final authState = ref.watch(authViewModelProvider);
-    final hospitalName = _currentHospital?.name ??
-      '${authState.authEntity?.firstName ?? ''} ${authState.authEntity?.lastName ?? ''}'
-        .trim();
+    final hospitalName =
+        _currentHospital?.name ??
+        '${authState.authEntity?.firstName ?? ''} ${authState.authEntity?.lastName ?? ''}'
+            .trim();
 
     ref.listen<BloodRequestState>(bloodRequestViewModelProvider, (
       previous,
@@ -220,6 +373,22 @@ class _HospitalRequestsScreenState
         elevation: 2,
         backgroundColor: Colors.white,
         actions: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                tooltip: 'Notifications',
+                onPressed: () => _openNotifications(notifications),
+                icon: const Icon(Icons.notifications_none_rounded),
+              ),
+              if (hasUnread)
+                const Positioned(
+                  right: 10,
+                  top: 10,
+                  child: CircleAvatar(radius: 4, backgroundColor: Colors.red),
+                ),
+            ],
+          ),
           IconButton(
             tooltip: 'Profile',
             onPressed: () {
@@ -604,46 +773,53 @@ class _HospitalRequestsScreenState
                 child: Wrap(
                   spacing: 4,
                   children: [
-                  TextButton.icon(
-                    onPressed: () => _quickApprove(request),
-                    icon: const Icon(
-                      Icons.check,
-                      size: 16,
-                      color: Colors.green,
+                    TextButton.icon(
+                      onPressed: () => _quickApprove(request),
+                      icon: const Icon(
+                        Icons.check,
+                        size: 16,
+                        color: Colors.green,
+                      ),
+                      label: const Text(
+                        'Approve',
+                        style: TextStyle(fontSize: 12, color: Colors.green),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
                     ),
-                    label: const Text(
-                      'Approve',
-                      style: TextStyle(fontSize: 12, color: Colors.green),
+                    TextButton.icon(
+                      onPressed: () => _quickReject(request),
+                      icon: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Colors.red,
+                      ),
+                      label: const Text(
+                        'Reject',
+                        style: TextStyle(fontSize: 12, color: Colors.red),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
                     ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    TextButton.icon(
+                      onPressed: () => _deleteBloodRequest(request),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        size: 16,
+                        color: Colors.red,
+                      ),
+                      label: const Text(
+                        'Delete',
+                        style: TextStyle(fontSize: 12, color: Colors.red),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
                     ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => _quickReject(request),
-                    icon: const Icon(Icons.close, size: 16, color: Colors.red),
-                    label: const Text(
-                      'Reject',
-                      style: TextStyle(fontSize: 12, color: Colors.red),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => _deleteBloodRequest(request),
-                    icon: const Icon(Icons.delete_outline,
-                        size: 16, color: Colors.red),
-                    label: const Text(
-                      'Delete',
-                      style: TextStyle(fontSize: 12, color: Colors.red),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
               ),
             ] else if (request.status == 'approved') ...[
               const SizedBox(height: 10),
@@ -666,8 +842,11 @@ class _HospitalRequestsScreenState
                     ),
                     TextButton.icon(
                       onPressed: () => _markBloodAsFulfilled(request),
-                      icon: const Icon(Icons.task_alt,
-                          size: 16, color: Colors.teal),
+                      icon: const Icon(
+                        Icons.task_alt,
+                        size: 16,
+                        color: Colors.teal,
+                      ),
                       label: const Text(
                         'Fulfilled',
                         style: TextStyle(fontSize: 12, color: Colors.teal),
@@ -675,8 +854,11 @@ class _HospitalRequestsScreenState
                     ),
                     TextButton.icon(
                       onPressed: () => _deleteBloodRequest(request),
-                      icon: const Icon(Icons.delete_outline,
-                          size: 16, color: Colors.red),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        size: 16,
+                        color: Colors.red,
+                      ),
                       label: const Text(
                         'Delete',
                         style: TextStyle(fontSize: 12, color: Colors.red),
@@ -691,8 +873,11 @@ class _HospitalRequestsScreenState
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   onPressed: () => _deleteBloodRequest(request),
-                  icon: const Icon(Icons.delete_outline,
-                      size: 16, color: Colors.red),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 16,
+                    color: Colors.red,
+                  ),
                   label: const Text(
                     'Delete',
                     style: TextStyle(fontSize: 12, color: Colors.red),
@@ -746,7 +931,8 @@ class _HospitalRequestsScreenState
               ),
               _detailRow('Created', _formatDate(request.createdAt)),
               _detailRow('Scheduled', _formatDate(request.scheduledAt)),
-              if (request.contactPhone != null && request.contactPhone!.isNotEmpty)
+              if (request.contactPhone != null &&
+                  request.contactPhone!.isNotEmpty)
                 _detailRow('Phone', request.contactPhone!),
               if (request.notes != null && request.notes!.isNotEmpty)
                 _detailRow('Notes', request.notes!),
@@ -799,7 +985,8 @@ class _HospitalRequestsScreenState
 
   Future<void> _openReport(String reportUrl) async {
     final lower = reportUrl.toLowerCase();
-    final isImage = lower.endsWith('.png') ||
+    final isImage =
+        lower.endsWith('.png') ||
         lower.endsWith('.jpg') ||
         lower.endsWith('.jpeg') ||
         lower.endsWith('.webp') ||
@@ -874,9 +1061,9 @@ class _HospitalRequestsScreenState
   Future<void> _copyReportLink(String reportUrl) async {
     await Clipboard.setData(ClipboardData(text: reportUrl));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report link copied')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Report link copied')));
     }
   }
 
@@ -887,7 +1074,9 @@ class _HospitalRequestsScreenState
     if (!mounted) return;
     if (hospital?.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Hospital profile not found for this account')),
+        const SnackBar(
+          content: Text('Hospital profile not found for this account'),
+        ),
       );
       return;
     }
@@ -901,10 +1090,7 @@ class _HospitalRequestsScreenState
     const bloodTypeOptions = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
     for (final type in bloodTypeOptions) {
       bloodTypeItems.add(
-        DropdownMenuItem<String>(
-          value: type,
-          child: Text(type),
-        ),
+        DropdownMenuItem<String>(value: type, child: Text(type)),
       );
     }
 
@@ -921,12 +1107,16 @@ class _HospitalRequestsScreenState
                   children: [
                     TextField(
                       controller: donorController,
-                      decoration: const InputDecoration(labelText: 'Donor Name'),
+                      decoration: const InputDecoration(
+                        labelText: 'Donor Name',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       value: bloodType,
-                      decoration: const InputDecoration(labelText: 'Blood Type'),
+                      decoration: const InputDecoration(
+                        labelText: 'Blood Type',
+                      ),
                       items: bloodTypeItems,
                       onChanged: (value) {
                         if (value == null) return;
@@ -945,14 +1135,17 @@ class _HospitalRequestsScreenState
                     TextField(
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration:
-                          const InputDecoration(labelText: 'Contact Phone (optional)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Contact Phone (optional)',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: notesController,
                       maxLines: 2,
-                      decoration: const InputDecoration(labelText: 'Notes (optional)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Notes (optional)',
+                      ),
                     ),
                   ],
                 ),
@@ -969,7 +1162,9 @@ class _HospitalRequestsScreenState
                     if (donorName.isEmpty || units == null || units <= 0) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Enter donor name and a valid unit count'),
+                          content: Text(
+                            'Enter donor name and a valid unit count',
+                          ),
                         ),
                       );
                       return;
@@ -1017,7 +1212,9 @@ class _HospitalRequestsScreenState
     if (!mounted) return;
     if (hospital?.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Hospital profile not found for this account')),
+        const SnackBar(
+          content: Text('Hospital profile not found for this account'),
+        ),
       );
       return;
     }
@@ -1040,13 +1237,17 @@ class _HospitalRequestsScreenState
                   children: [
                     TextField(
                       controller: donorController,
-                      decoration: const InputDecoration(labelText: 'Donor Name'),
+                      decoration: const InputDecoration(
+                        labelText: 'Donor Name',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: notesController,
                       maxLines: 2,
-                      decoration: const InputDecoration(labelText: 'Notes (optional)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Notes (optional)',
+                      ),
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
@@ -1056,7 +1257,8 @@ class _HospitalRequestsScreenState
                           allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
                         );
 
-                        if (result == null || result.files.single.path == null) {
+                        if (result == null ||
+                            result.files.single.path == null) {
                           return;
                         }
 
@@ -1082,7 +1284,9 @@ class _HospitalRequestsScreenState
                     if (donorName.isEmpty || selectedReport == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Enter donor name and upload report file'),
+                          content: Text(
+                            'Enter donor name and upload report file',
+                          ),
                         ),
                       );
                       return;
@@ -1106,7 +1310,9 @@ class _HospitalRequestsScreenState
                       Navigator.pop(dialogContext);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Organ donation request created successfully'),
+                          content: Text(
+                            'Organ donation request created successfully',
+                          ),
                         ),
                       );
                       await _loadRequests();
@@ -1385,7 +1591,8 @@ class _HospitalRequestsScreenState
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: filtered.length,
-        itemBuilder: (context, index) => _buildOrganRequestCard(filtered[index]),
+        itemBuilder: (context, index) =>
+            _buildOrganRequestCard(filtered[index]),
       ),
     );
   }
@@ -1430,14 +1637,17 @@ class _HospitalRequestsScreenState
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    request.status[0].toUpperCase() + request.status.substring(1),
+                    request.status[0].toUpperCase() +
+                        request.status.substring(1),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -1452,7 +1662,10 @@ class _HospitalRequestsScreenState
               spacing: 12,
               runSpacing: 8,
               children: [
-                _buildInfoChip(Icons.calendar_today, _formatDate(request.createdAt)),
+                _buildInfoChip(
+                  Icons.calendar_today,
+                  _formatDate(request.createdAt),
+                ),
                 _buildInfoChip(
                   Icons.event,
                   request.scheduledAt != null
@@ -1494,7 +1707,11 @@ class _HospitalRequestsScreenState
                   children: [
                     TextButton.icon(
                       onPressed: () => _approveOrganWithDate(request),
-                      icon: const Icon(Icons.check, size: 16, color: Colors.green),
+                      icon: const Icon(
+                        Icons.check,
+                        size: 16,
+                        color: Colors.green,
+                      ),
                       label: const Text(
                         'Approve',
                         style: TextStyle(fontSize: 12, color: Colors.green),
@@ -1502,7 +1719,11 @@ class _HospitalRequestsScreenState
                     ),
                     TextButton.icon(
                       onPressed: () => _rejectOrgan(request),
-                      icon: const Icon(Icons.close, size: 16, color: Colors.red),
+                      icon: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Colors.red,
+                      ),
                       label: const Text(
                         'Reject',
                         style: TextStyle(fontSize: 12, color: Colors.red),
@@ -1510,8 +1731,11 @@ class _HospitalRequestsScreenState
                     ),
                     TextButton.icon(
                       onPressed: () => _deleteOrganRequest(request),
-                      icon: const Icon(Icons.delete_outline,
-                          size: 16, color: Colors.red),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        size: 16,
+                        color: Colors.red,
+                      ),
                       label: const Text(
                         'Delete',
                         style: TextStyle(fontSize: 12, color: Colors.red),
@@ -1529,8 +1753,11 @@ class _HospitalRequestsScreenState
                   children: [
                     TextButton.icon(
                       onPressed: () => _approveOrganWithDate(request),
-                      icon:
-                          const Icon(Icons.edit_calendar, size: 16, color: Colors.blue),
+                      icon: const Icon(
+                        Icons.edit_calendar,
+                        size: 16,
+                        color: Colors.blue,
+                      ),
                       label: const Text(
                         'Edit Date',
                         style: TextStyle(fontSize: 12, color: Colors.blue),
@@ -1538,8 +1765,11 @@ class _HospitalRequestsScreenState
                     ),
                     TextButton.icon(
                       onPressed: () => _markOrganAsFulfilled(request),
-                      icon:
-                          const Icon(Icons.task_alt, size: 16, color: Colors.teal),
+                      icon: const Icon(
+                        Icons.task_alt,
+                        size: 16,
+                        color: Colors.teal,
+                      ),
                       label: const Text(
                         'Fulfilled',
                         style: TextStyle(fontSize: 12, color: Colors.teal),
@@ -1547,8 +1777,11 @@ class _HospitalRequestsScreenState
                     ),
                     TextButton.icon(
                       onPressed: () => _deleteOrganRequest(request),
-                      icon: const Icon(Icons.delete_outline,
-                          size: 16, color: Colors.red),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        size: 16,
+                        color: Colors.red,
+                      ),
                       label: const Text(
                         'Delete',
                         style: TextStyle(fontSize: 12, color: Colors.red),
@@ -1563,8 +1796,11 @@ class _HospitalRequestsScreenState
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   onPressed: () => _deleteOrganRequest(request),
-                  icon: const Icon(Icons.delete_outline,
-                      size: 16, color: Colors.red),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 16,
+                    color: Colors.red,
+                  ),
                   label: const Text(
                     'Delete',
                     style: TextStyle(fontSize: 12, color: Colors.red),
@@ -1709,4 +1945,18 @@ class _HospitalRequestsScreenState
       await _loadRequests();
     }
   }
+}
+
+class _HospitalNotificationItem {
+  final String id;
+  final String title;
+  final String message;
+  final DateTime eventAt;
+
+  const _HospitalNotificationItem({
+    required this.id,
+    required this.title,
+    required this.message,
+    required this.eventAt,
+  });
 }

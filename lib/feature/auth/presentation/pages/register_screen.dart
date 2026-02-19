@@ -47,10 +47,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   void _goToLogin() {
-    Navigator.pushReplacement(
+    Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
+  }
+
+  Future<bool> _handleBackNavigation() async {
+    final navigator = Navigator.of(context);
+
+    if (navigator.canPop()) {
+      navigator.pop();
+    } else {
+      _goToLogin();
+    }
+
+    return false;
   }
 
   @override
@@ -84,24 +97,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
     });
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFF4F7),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
+    return WillPopScope(
+      onWillPop: _handleBackNavigation,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFFF4F7),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
                 children: [
                   const SizedBox(height: 16),
 
                   Align(
                     alignment: Alignment.centerLeft,
                     child: IconButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                      onPressed: _goToLogin,
                       icon: const Icon(Icons.arrow_back, color: Colors.grey),
                     ),
                   ),
@@ -204,43 +217,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            onPressed: () {
-                              showMySnackBar(
-                                context: context,
-                                message: "Google sign in pressed",
-                                color: Colors.redAccent,
-                              );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              side: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.g_mobiledata, size: 28),
-                                SizedBox(width: 8),
-                                Text(
-                                  "Sign in with Google",
-                                  style: TextStyle(fontSize: 15),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 16),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -264,6 +243,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                   const SizedBox(height: 8),
                 ],
+                ),
               ),
             ),
           ),

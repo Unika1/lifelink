@@ -3,6 +3,8 @@ import 'package:lifelink/feature/hospital/domain/entities/hospital_entity.dart';
 
 enum HospitalStatus { initial, loading, loaded, error }
 
+const _hospitalStateUnset = Object();
+
 class HospitalState extends Equatable {
   final HospitalStatus status;
   final List<HospitalEntity> hospitals;
@@ -21,16 +23,20 @@ class HospitalState extends Equatable {
   HospitalState copyWith({
     HospitalStatus? status,
     List<HospitalEntity>? hospitals,
-    HospitalEntity? selectedHospital,
+    Object? selectedHospital = _hospitalStateUnset,
     List<BloodInventoryEntity>? inventory,
-    String? errorMessage,
+    Object? errorMessage = _hospitalStateUnset,
   }) {
     return HospitalState(
       status: status ?? this.status,
       hospitals: hospitals ?? this.hospitals,
-      selectedHospital: selectedHospital ?? this.selectedHospital,
+      selectedHospital: selectedHospital == _hospitalStateUnset
+          ? this.selectedHospital
+          : selectedHospital as HospitalEntity?,
       inventory: inventory ?? this.inventory,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: errorMessage == _hospitalStateUnset
+          ? this.errorMessage
+          : errorMessage as String?,
     );
   }
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifelink/core/services/storage/user_session_service.dart';
 import 'package:lifelink/feature/home/presentation/pages/dashboard_screen.dart';
-import 'package:lifelink/feature/hospital/presentation/pages/dashboard/hospital_requests_screen.dart';
+import 'package:lifelink/feature/hospital/presentation/pages/hospital_requests_screen.dart';
 import 'package:lifelink/feature/onboarding/presentation/pages/onboarding_screen.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {

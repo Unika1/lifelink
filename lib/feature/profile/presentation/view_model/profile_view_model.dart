@@ -9,22 +9,31 @@ final profileViewModelProvider =
     NotifierProvider<ProfileViewModel, ProfileState>(ProfileViewModel.new);
 
 class ProfileViewModel extends Notifier<ProfileState> {
-  late final UploadProfileImageUsecase _uploadUsecase;
-  late final IProfileRepository _repository;
+  late UploadProfileImageUsecase _uploadUsecase;
+  late IProfileRepository _repository;
 
   @override
   ProfileState build() {
     _uploadUsecase = ref.read(uploadProfileImageUsecaseProvider);
     _repository = ref.read(profileRepositoryProvider);
 
-    _loadCached();
+    Future.microtask(_loadCached);
     return const ProfileState();
   }
 
   Future<void> _loadCached() async {
+    state = state.copyWith(status: ProfileStatus.loading, errorMessage: null);
+
     final res = await _repository.getProfile();
+    if (!ref.mounted) return;
+
     res.fold(
-      (_) {},
+      (failure) {
+        state = state.copyWith(
+          status: ProfileStatus.error,
+          errorMessage: failure.message,
+        );
+      },
       (profile) {
         state = state.copyWith(
           status: ProfileStatus.loaded,
@@ -66,8 +75,7 @@ class ProfileViewModel extends Notifier<ProfileState> {
   Future<void> setBloodGroup(String bloodGroup) async {
     state = state.copyWith(status: ProfileStatus.loading, errorMessage: null);
 
-    final result =
-        await _repository.updateProfile({'bloodGroup': bloodGroup});
+    final result = await _repository.updateProfile({'bloodGroup': bloodGroup});
 
     result.fold(
       (failure) {
@@ -89,8 +97,7 @@ class ProfileViewModel extends Notifier<ProfileState> {
   Future<void> setPhoneNumber(String phone) async {
     state = state.copyWith(status: ProfileStatus.loading, errorMessage: null);
 
-    final result =
-        await _repository.updateProfile({'phoneNumber': phone});
+    final result = await _repository.updateProfile({'phoneNumber': phone});
 
     result.fold(
       (failure) {

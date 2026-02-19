@@ -3,6 +3,8 @@ import 'package:lifelink/feature/blood_banks/domain/entities/blood_bank_entity.d
 
 enum BloodBankStatus { initial, loading, loaded, message, error }
 
+const _bloodBankStateUnset = Object();
+
 class BloodBankState extends Equatable {
   final BloodBankStatus status;
   final List<BloodBankEntity> bloodBanks;
@@ -23,18 +25,24 @@ class BloodBankState extends Equatable {
   BloodBankState copyWith({
     BloodBankStatus? status,
     List<BloodBankEntity>? bloodBanks,
-    BloodBankEntity? selectedBloodBank,
+    Object? selectedBloodBank = _bloodBankStateUnset,
     List<BloodInventoryEntity>? inventory,
-    String? errorMessage,
-    String? message,
+    Object? errorMessage = _bloodBankStateUnset,
+    Object? message = _bloodBankStateUnset,
   }) {
     return BloodBankState(
       status: status ?? this.status,
       bloodBanks: bloodBanks ?? this.bloodBanks,
-      selectedBloodBank: selectedBloodBank ?? this.selectedBloodBank,
+      selectedBloodBank: selectedBloodBank == _bloodBankStateUnset
+          ? this.selectedBloodBank
+          : selectedBloodBank as BloodBankEntity?,
       inventory: inventory ?? this.inventory,
-      errorMessage: errorMessage ?? this.errorMessage,
-      message: message ?? this.message,
+      errorMessage: errorMessage == _bloodBankStateUnset
+          ? this.errorMessage
+          : errorMessage as String?,
+      message: message == _bloodBankStateUnset
+          ? this.message
+          : message as String?,
     );
   }
 

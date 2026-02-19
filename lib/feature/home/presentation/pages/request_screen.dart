@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lifelink/feature/blood_donation_request/presentation/pages/my_requests_screen.dart';
-import 'package:lifelink/feature/organ_donation_request/presentation/pages/my_organ_requests_screen.dart';
+import 'package:lifelink/feature/organ_donation_request/presentation/pages/my_organ_donation_requests_screen.dart';
 
 class RequestScreen extends StatelessWidget {
   const RequestScreen({super.key});

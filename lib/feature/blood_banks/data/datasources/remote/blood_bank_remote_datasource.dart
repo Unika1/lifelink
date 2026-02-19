@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+import 'dart:math' as math;
 import 'package:lifelink/feature/blood_banks/data/datasources/blood_bank_datasource.dart';
 import 'package:lifelink/feature/blood_banks/data/models/blood_bank_api_model.dart';
 
@@ -31,6 +32,9 @@ class BloodBankRemoteDataSource implements IBloodBankRemoteDataSource {
     String? state,
     String? bloodType,
     bool? isActive,
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
   }) async {
     final queryParts = <String>['blood bank'];
     if (city != null && city.trim().isNotEmpty) {
@@ -44,6 +48,22 @@ class BloodBankRemoteDataSource implements IBloodBankRemoteDataSource {
       queryParts.add('Nepal');
     }
 
+    Map<String, dynamic>? nearbyParams;
+    if (latitude != null && longitude != null) {
+      final radius = (radiusKm ?? 15).clamp(1, 100);
+      final latitudeDelta = radius / 111.0;
+      final longitudeDelta = radius / (111.0 * _safeCos(latitude));
+      final left = longitude - longitudeDelta;
+      final right = longitude + longitudeDelta;
+      final top = latitude + latitudeDelta;
+      final bottom = latitude - latitudeDelta;
+
+      nearbyParams = {
+        'viewbox': '$left,$top,$right,$bottom',
+        'bounded': 1,
+      };
+    }
+
     final response = await _externalDio.get(
       _searchUrl,
       queryParameters: {
@@ -51,6 +71,7 @@ class BloodBankRemoteDataSource implements IBloodBankRemoteDataSource {
         'format': 'jsonv2',
         'addressdetails': 1,
         'limit': 100,
+        if (nearbyParams != null) ...nearbyParams,
       },
     );
 
@@ -67,7 +88,24 @@ class BloodBankRemoteDataSource implements IBloodBankRemoteDataSource {
         .toList();
 
     _lastFetchedBloodBanks = results;
+
+    if (_lastFetchedBloodBanks.isEmpty && nearbyParams != null) {
+      return await getAllBloodBanks(
+        city: city,
+        state: state,
+        bloodType: bloodType,
+        isActive: isActive,
+      );
+    }
+
     return _lastFetchedBloodBanks;
+  }
+
+  double _safeCos(double latitude) {
+    const degToRad = 0.017453292519943295;
+    final value = (latitude * degToRad).abs();
+    final cosValue = value == 0 ? 1.0 : (value > 1.56 ? 0.01 : math.cos(value));
+    return cosValue.abs() < 0.01 ? 0.01 : cosValue;
   }
 
   @override

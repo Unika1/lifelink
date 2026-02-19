@@ -12,16 +12,30 @@ class GetAllBloodBanksParams extends Equatable {
   final String? state;
   final String? bloodType;
   final bool? isActive;
+  final double? latitude;
+  final double? longitude;
+  final double? radiusKm;
 
   const GetAllBloodBanksParams({
     this.city,
     this.state,
     this.bloodType,
     this.isActive,
+    this.latitude,
+    this.longitude,
+    this.radiusKm,
   });
 
   @override
-  List<Object?> get props => [city, state, bloodType, isActive];
+  List<Object?> get props => [
+        city,
+        state,
+        bloodType,
+        isActive,
+        latitude,
+        longitude,
+        radiusKm,
+      ];
 }
 
 final getAllBloodBanksUsecaseProvider = Provider<GetAllBloodBanksUsecase>((ref) {
@@ -45,6 +59,9 @@ class GetAllBloodBanksUsecase
       state: params.state,
       bloodType: params.bloodType,
       isActive: params.isActive,
+      latitude: params.latitude,
+      longitude: params.longitude,
+      radiusKm: params.radiusKm,
     );
   }
 }

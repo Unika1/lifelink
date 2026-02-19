@@ -6,7 +6,7 @@ import 'package:lifelink/feature/auth/presentation/pages/register_screen.dart';
 import 'package:lifelink/feature/auth/presentation/state/auth_state.dart';
 import 'package:lifelink/feature/auth/presentation/view_model/auth_view_model.dart';
 import 'package:lifelink/feature/home/presentation/pages/dashboard_screen.dart';
-import 'package:lifelink/feature/hospital/presentation/pages/dashboard/hospital_requests_screen.dart';
+import 'package:lifelink/feature/hospital/presentation/pages/hospital_requests_screen.dart';
 import 'package:lifelink/widgets/my_button.dart';
 import 'package:lifelink/widgets/my_textformfield.dart';
 
@@ -38,7 +38,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) return;
 
-    await ref.read(authViewModelProvider.notifier).login(
+    await ref
+        .read(authViewModelProvider.notifier)
+        .login(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
@@ -55,7 +57,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (next.status == AuthStatus.authenticated) {
         final role = next.authEntity?.role ?? 'donor';
         final Widget destination = role == 'hospital'
-          ? const HospitalRequestsScreen()
+            ? const HospitalRequestsScreen()
             : const DashboardScreen();
 
         Navigator.pushReplacement(
@@ -123,10 +125,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 24),
                 const Text(
                   "Login",
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 30),
 
@@ -195,8 +194,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ? "Logging in.."
                         : "Login",
                     color: Colors.redAccent,
-                    onPressed:
-                        authState.status == AuthStatus.loading ? null : _handleLogin,
+                    onPressed: authState.status == AuthStatus.loading
+                        ? null
+                        : _handleLogin,
                   ),
                 ),
 
@@ -211,20 +211,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Expanded(child: Divider()),
                   ],
                 ),
-                const SizedBox(height: 20),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.g_mobiledata, size: 30),
-                    label: const Text("Continue with Google"),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 48),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                 const SizedBox(height: 20),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

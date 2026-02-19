@@ -6,6 +6,9 @@ abstract interface class IBloodBankRemoteDataSource {
     String? state,
     String? bloodType,
     bool? isActive,
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
   });
 
   Future<BloodBankApiModel> getBloodBankById(String id);

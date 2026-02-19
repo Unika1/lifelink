@@ -23,6 +23,9 @@ class BloodBankRepository implements IBloodBankRepository {
 		String? state,
 		String? bloodType,
 		bool? isActive,
+		double? latitude,
+		double? longitude,
+		double? radiusKm,
 	}) async {
 		try {
 			final models = await _remoteDataSource.getAllBloodBanks(
@@ -30,6 +33,9 @@ class BloodBankRepository implements IBloodBankRepository {
 				state: state,
 				bloodType: bloodType,
 				isActive: isActive,
+				latitude: latitude,
+				longitude: longitude,
+				radiusKm: radiusKm,
 			);
 			return Right(models.map((model) => model.toEntity()).toList());
 		} catch (e) {

@@ -8,6 +8,9 @@ abstract interface class IBloodBankRepository {
 		String? state,
 		String? bloodType,
 		bool? isActive,
+		double? latitude,
+		double? longitude,
+		double? radiusKm,
 	});
 
 	Future<Either<Failure, BloodBankEntity>> getBloodBankById(String id);

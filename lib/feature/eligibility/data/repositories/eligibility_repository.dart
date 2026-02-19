@@ -8,6 +8,25 @@ import 'package:lifelink/feature/eligibility/domain/entities/eligibility_entity.
 import 'package:lifelink/feature/eligibility/domain/repositories/i_eligibility_repository.dart';
 import 'package:riverpod/riverpod.dart';
 
+String _extractDioMessage(DioException e, String fallback) {
+  final data = e.response?.data;
+  if (data is Map) {
+    final message = data['message'];
+    if (message != null && message.toString().trim().isNotEmpty) {
+      return message.toString();
+    }
+  } else if (data is String && data.trim().isNotEmpty) {
+    return data;
+  }
+
+  final dioMessage = e.message;
+  if (dioMessage != null && dioMessage.trim().isNotEmpty) {
+    return dioMessage;
+  }
+
+  return fallback;
+}
+
 final eligibilityRepositoryProvider =
     Provider<IEligibilityRepository>((ref) {
   return EligibilityRepository(
@@ -36,8 +55,7 @@ class EligibilityRepository implements IEligibilityRepository {
       debugPrint('Response: ${e.response?.data}');
       return Left(
         ApiFailure(
-          message: e.response?.data['message']?.toString() ??
-              'Failed to submit questionnaire',
+          message: _extractDioMessage(e, 'Failed to submit questionnaire'),
           statusCode: e.response?.statusCode,
         ),
       );
@@ -58,8 +76,7 @@ class EligibilityRepository implements IEligibilityRepository {
       debugPrint('Response: ${e.response?.data}');
       return Left(
         ApiFailure(
-          message: e.response?.data['message']?.toString() ??
-              'Failed to check eligibility',
+          message: _extractDioMessage(e, 'Failed to check eligibility'),
           statusCode: e.response?.statusCode,
         ),
       );
@@ -77,8 +94,7 @@ class EligibilityRepository implements IEligibilityRepository {
     } on DioException catch (e) {
       return Left(
         ApiFailure(
-          message: e.response?.data['message']?.toString() ??
-              'No questionnaire found',
+          message: _extractDioMessage(e, 'No questionnaire found'),
           statusCode: e.response?.statusCode,
         ),
       );

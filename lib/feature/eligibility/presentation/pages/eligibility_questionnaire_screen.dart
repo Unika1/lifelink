@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lifelink/feature/blood_donation_request/presentation/pages/blood_request_form_page.dart';
 import 'package:lifelink/feature/eligibility/domain/entities/eligibility_entity.dart';
-import 'package:lifelink/feature/eligibility/presentation/pages/eligibility_result_screen.dart';
 import 'package:lifelink/feature/eligibility/presentation/state/eligibility_state.dart';
 import 'package:lifelink/feature/eligibility/presentation/view_model/eligibility_view_model.dart';
+import 'package:lifelink/feature/organ_donation_request/presentation/pages/create_organ_donation_request_screen.dart';
 import 'package:lifelink/theme/app_theme.dart';
 
 class EligibilityQuestionnaireScreen extends ConsumerStatefulWidget {
@@ -53,6 +54,10 @@ class _EligibilityQuestionnaireScreenState
   bool _hasRecentPiercing = false;
   bool _hadBloodTransfusion = false;
 
+  bool _showResult = false;
+  bool _isEligibleResult = false;
+  EligibilityResultEntity? _result;
+
   @override
   void dispose() {
     _ageController.dispose();
@@ -79,16 +84,28 @@ class _EligibilityQuestionnaireScreenState
     });
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_gender.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select gender')),
-      );
-      return;
-    }
+  String _formatDate(DateTime? date) {
+    if (date == null) return '';
+    return '${date.day}/${date.month}/${date.year}';
+  }
 
-    final questionnaire = EligibilityQuestionnaireEntity(
+  bool get _isFemale => _gender == 'female';
+
+  List<String> _splitCommaSeparated(String rawValue) {
+    return rawValue
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+
+  String? _optionalText(TextEditingController controller) {
+    final value = controller.text.trim();
+    return value.isEmpty ? null : value;
+  }
+
+  EligibilityQuestionnaireEntity _buildQuestionnaire() {
+    return EligibilityQuestionnaireEntity(
       age: int.parse(_ageController.text.trim()),
       weight: double.parse(_weightController.text.trim()),
       gender: _gender,
@@ -101,32 +118,35 @@ class _EligibilityQuestionnaireScreenState
       hasTuberculosis: _hasTuberculosis,
       recentTravel: _recentTravel,
       travelCountries: _recentTravel
-          ? _travelCountriesController.text
-              .split(',')
-              .map((item) => item.trim())
-              .where((item) => item.isNotEmpty)
-              .toList()
+          ? _splitCommaSeparated(_travelCountriesController.text)
           : const [],
       takingMedications: _takingMedications,
       medications: _takingMedications
-          ? _medicationsController.text
-              .split(',')
-              .map((item) => item.trim())
-              .where((item) => item.isNotEmpty)
-              .toList()
+          ? _splitCommaSeparated(_medicationsController.text)
           : const [],
       activeInfection: _activeInfection,
-      infectionDetails:
-          _activeInfection ? _infectionDetailsController.text.trim() : null,
-      isPregnant: _gender == 'female' ? _isPregnant : null,
-      isBreastfeeding: _gender == 'female' ? _isBreastfeeding : null,
+      infectionDetails: _activeInfection
+          ? _optionalText(_infectionDetailsController)
+          : null,
+      isPregnant: _isFemale ? _isPregnant : null,
+      isBreastfeeding: _isFemale ? _isBreastfeeding : null,
       hasRecentTattoo: _hasRecentTattoo,
       hasRecentPiercing: _hasRecentPiercing,
       hadBloodTransfusion: _hadBloodTransfusion,
-      additionalNotes: _additionalNotesController.text.trim().isNotEmpty
-          ? _additionalNotesController.text.trim()
-          : null,
+      additionalNotes: _optionalText(_additionalNotesController),
     );
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_gender.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select gender')));
+      return;
+    }
+
+    final questionnaire = _buildQuestionnaire();
 
     final isEligible = await ref
         .read(eligibilityViewModelProvider.notifier)
@@ -136,18 +156,11 @@ class _EligibilityQuestionnaireScreenState
 
     final result = ref.read(eligibilityViewModelProvider).result;
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EligibilityResultScreen(
-          result: result,
-          isEligible: isEligible,
-          hospitalId: widget.hospitalId,
-          hospitalName: widget.hospitalName,
-          requestType: widget.requestType,
-        ),
-      ),
-    );
+    setState(() {
+      _showResult = true;
+      _isEligibleResult = isEligible;
+      _result = result;
+    });
   }
 
   @override
@@ -155,10 +168,11 @@ class _EligibilityQuestionnaireScreenState
     final eligibilityState = ref.watch(eligibilityViewModelProvider);
     final isLoading = eligibilityState.status == EligibilityStatus.loading;
 
-    ref.listen<EligibilityState>(eligibilityViewModelProvider,
-        (previous, next) {
-      if (next.status == EligibilityStatus.error &&
-          next.errorMessage != null) {
+    ref.listen<EligibilityState>(eligibilityViewModelProvider, (
+      previous,
+      next,
+    ) {
+      if (next.status == EligibilityStatus.error && next.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.errorMessage!),
@@ -170,227 +184,482 @@ class _EligibilityQuestionnaireScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Eligibility Questionnaire'),
+        title: Text(
+          _showResult ? 'Eligibility Result' : 'Eligibility Questionnaire',
+        ),
         elevation: 2,
         backgroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _sectionTitle('Basic Information'),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _ageController,
-                keyboardType: TextInputType.number,
-                decoration: _inputDecoration('Age', Icons.cake),
-                validator: (val) {
-                  if (val == null || val.isEmpty) return 'Age is required';
-                  final age = int.tryParse(val);
-                  if (age == null || age < 18 || age > 100) {
-                    return 'Age must be between 18-100';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _weightController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: _inputDecoration('Weight (kg)', Icons.monitor_weight),
-                validator: (val) {
-                  if (val == null || val.isEmpty) return 'Weight is required';
-                  final weight = double.tryParse(val);
-                  if (weight == null || weight < 40) {
-                    return 'Enter valid weight (minimum 40 kg)';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _gender.isEmpty ? null : _gender,
-                decoration: _inputDecoration('Gender', Icons.person),
-                items: const ['male', 'female', 'other']
-                    .map(
-                      (gender) => DropdownMenuItem(
-                        value: gender,
-                        child: Text(gender[0].toUpperCase() + gender.substring(1)),
+      body: SafeArea(
+        child: _showResult
+            ? _buildResultBody()
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionTitle('Basic Information'),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _ageController,
+                        keyboardType: TextInputType.number,
+                        decoration: _inputDecoration('Age', Icons.cake),
+                        validator: (val) {
+                          if (val == null || val.isEmpty)
+                            return 'Age is required';
+                          final age = int.tryParse(val);
+                          if (age == null || age < 18 || age > 100) {
+                            return 'Age must be between 18-100';
+                          }
+                          return null;
+                        },
                       ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => _gender = value ?? ''),
-                validator: (value) =>
-                    (value == null || value.isEmpty) ? 'Gender is required' : null,
-              ),
-              const SizedBox(height: 20),
-
-              _sectionTitle('Health Conditions'),
-              const SizedBox(height: 10),
-              _checkTile('No diseases', _noDiseases, _toggleNoDiseases),
-              _checkTile(
-                'High blood pressure',
-                _hasBloodPressure,
-                (value) => setState(() => _hasBloodPressure = value),
-                disabled: _noDiseases,
-              ),
-              _checkTile(
-                'Diabetes',
-                _hasDiabetes,
-                (value) => setState(() => _hasDiabetes = value),
-                disabled: _noDiseases,
-              ),
-              _checkTile(
-                'Heart disease',
-                _hasHeartDisease,
-                (value) => setState(() => _hasHeartDisease = value),
-                disabled: _noDiseases,
-              ),
-              _checkTile(
-                'Cancer',
-                _hasCancer,
-                (value) => setState(() => _hasCancer = value),
-                disabled: _noDiseases,
-              ),
-              _checkTile(
-                'Hepatitis',
-                _hasHepatitis,
-                (value) => setState(() => _hasHepatitis = value),
-                disabled: _noDiseases,
-              ),
-              _checkTile(
-                'HIV',
-                _hasHIV,
-                (value) => setState(() => _hasHIV = value),
-                disabled: _noDiseases,
-              ),
-              _checkTile(
-                'Tuberculosis',
-                _hasTuberculosis,
-                (value) => setState(() => _hasTuberculosis = value),
-                disabled: _noDiseases,
-              ),
-              const SizedBox(height: 8),
-
-              _sectionTitle('Additional Questions'),
-              const SizedBox(height: 10),
-              _checkTile(
-                'Recent travel',
-                _recentTravel,
-                (value) => setState(() => _recentTravel = value),
-              ),
-              if (_recentTravel)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: TextFormField(
-                    controller: _travelCountriesController,
-                    decoration: _inputDecoration(
-                      'Travel countries (comma separated)',
-                      Icons.flight_takeoff,
-                    ),
-                  ),
-                ),
-              _checkTile(
-                'Taking medications',
-                _takingMedications,
-                (value) => setState(() => _takingMedications = value),
-              ),
-              if (_takingMedications)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: TextFormField(
-                    controller: _medicationsController,
-                    decoration: _inputDecoration(
-                      'Medications (comma separated)',
-                      Icons.medication,
-                    ),
-                  ),
-                ),
-              _checkTile(
-                'Active infection',
-                _activeInfection,
-                (value) => setState(() => _activeInfection = value),
-              ),
-              if (_activeInfection)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: TextFormField(
-                    controller: _infectionDetailsController,
-                    decoration: _inputDecoration(
-                      'Infection details',
-                      Icons.coronavirus,
-                    ),
-                  ),
-                ),
-              if (_gender == 'female') ...[
-                _checkTile(
-                  'Pregnant',
-                  _isPregnant,
-                  (value) => setState(() => _isPregnant = value),
-                ),
-                _checkTile(
-                  'Breastfeeding',
-                  _isBreastfeeding,
-                  (value) => setState(() => _isBreastfeeding = value),
-                ),
-              ],
-              _checkTile(
-                'Recent tattoo',
-                _hasRecentTattoo,
-                (value) => setState(() => _hasRecentTattoo = value),
-              ),
-              _checkTile(
-                'Recent piercing',
-                _hasRecentPiercing,
-                (value) => setState(() => _hasRecentPiercing = value),
-              ),
-              _checkTile(
-                'Had blood transfusion',
-                _hadBloodTransfusion,
-                (value) => setState(() => _hadBloodTransfusion = value),
-              ),
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: _additionalNotesController,
-                maxLines: 4,
-                decoration: _inputDecoration('Additional notes', Icons.note),
-              ),
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Submit',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _weightController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
                         ),
+                        decoration: _inputDecoration(
+                          'Weight (kg)',
+                          Icons.monitor_weight,
+                        ),
+                        validator: (val) {
+                          if (val == null || val.isEmpty)
+                            return 'Weight is required';
+                          final weight = double.tryParse(val);
+                          if (weight == null || weight < 40) {
+                            return 'Enter valid weight (minimum 40 kg)';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: _gender.isEmpty ? null : _gender,
+                        decoration: _inputDecoration('Gender', Icons.person),
+                        items: const ['male', 'female', 'other']
+                            .map(
+                              (gender) => DropdownMenuItem(
+                                value: gender,
+                                child: Text(
+                                  gender[0].toUpperCase() + gender.substring(1),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) =>
+                            setState(() => _gender = value ?? ''),
+                        validator: (value) => (value == null || value.isEmpty)
+                            ? 'Gender is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 20),
+
+                      _sectionTitle('Health Conditions'),
+                      const SizedBox(height: 10),
+                      _checkTile('No diseases', _noDiseases, _toggleNoDiseases),
+                      _checkTile(
+                        'High blood pressure',
+                        _hasBloodPressure,
+                        (value) => setState(() => _hasBloodPressure = value),
+                        disabled: _noDiseases,
+                      ),
+                      _checkTile(
+                        'Diabetes',
+                        _hasDiabetes,
+                        (value) => setState(() => _hasDiabetes = value),
+                        disabled: _noDiseases,
+                      ),
+                      _checkTile(
+                        'Heart disease',
+                        _hasHeartDisease,
+                        (value) => setState(() => _hasHeartDisease = value),
+                        disabled: _noDiseases,
+                      ),
+                      _checkTile(
+                        'Cancer',
+                        _hasCancer,
+                        (value) => setState(() => _hasCancer = value),
+                        disabled: _noDiseases,
+                      ),
+                      _checkTile(
+                        'Hepatitis',
+                        _hasHepatitis,
+                        (value) => setState(() => _hasHepatitis = value),
+                        disabled: _noDiseases,
+                      ),
+                      _checkTile(
+                        'HIV',
+                        _hasHIV,
+                        (value) => setState(() => _hasHIV = value),
+                        disabled: _noDiseases,
+                      ),
+                      _checkTile(
+                        'Tuberculosis',
+                        _hasTuberculosis,
+                        (value) => setState(() => _hasTuberculosis = value),
+                        disabled: _noDiseases,
+                      ),
+                      const SizedBox(height: 8),
+
+                      _sectionTitle('Additional Questions'),
+                      const SizedBox(height: 10),
+                      _checkTile(
+                        'Recent travel',
+                        _recentTravel,
+                        (value) => setState(() => _recentTravel = value),
+                      ),
+                      if (_recentTravel)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: TextFormField(
+                            controller: _travelCountriesController,
+                            decoration: _inputDecoration(
+                              'Travel countries (comma separated)',
+                              Icons.flight_takeoff,
+                            ),
+                          ),
+                        ),
+                      _checkTile(
+                        'Taking medications',
+                        _takingMedications,
+                        (value) => setState(() => _takingMedications = value),
+                      ),
+                      if (_takingMedications)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: TextFormField(
+                            controller: _medicationsController,
+                            decoration: _inputDecoration(
+                              'Medications (comma separated)',
+                              Icons.medication,
+                            ),
+                          ),
+                        ),
+                      _checkTile(
+                        'Active infection',
+                        _activeInfection,
+                        (value) => setState(() => _activeInfection = value),
+                      ),
+                      if (_activeInfection)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: TextFormField(
+                            controller: _infectionDetailsController,
+                            decoration: _inputDecoration(
+                              'Infection details',
+                              Icons.coronavirus,
+                            ),
+                          ),
+                        ),
+                      if (_gender == 'female') ...[
+                        _checkTile(
+                          'Pregnant',
+                          _isPregnant,
+                          (value) => setState(() => _isPregnant = value),
+                        ),
+                        _checkTile(
+                          'Breastfeeding',
+                          _isBreastfeeding,
+                          (value) => setState(() => _isBreastfeeding = value),
+                        ),
+                      ],
+                      _checkTile(
+                        'Recent tattoo',
+                        _hasRecentTattoo,
+                        (value) => setState(() => _hasRecentTattoo = value),
+                      ),
+                      _checkTile(
+                        'Recent piercing',
+                        _hasRecentPiercing,
+                        (value) => setState(() => _hasRecentPiercing = value),
+                      ),
+                      _checkTile(
+                        'Had blood transfusion',
+                        _hadBloodTransfusion,
+                        (value) => setState(() => _hadBloodTransfusion = value),
+                      ),
+                      const SizedBox(height: 12),
+
+                      TextFormField(
+                        controller: _additionalNotesController,
+                        maxLines: 4,
+                        decoration: _inputDecoration(
+                          'Additional notes',
+                          Icons.note,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: isLoading ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Submit',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  void _handleResultAction() {
+    if (_isEligibleResult) {
+      if (widget.requestType == 'organ') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CreateOrganRequestScreen(
+              hospitalId: widget.hospitalId,
+              hospitalName: widget.hospitalName,
+            ),
+          ),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BloodRequestFormPage(
+              hospitalId: widget.hospitalId,
+              hospitalName: widget.hospitalName,
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    Navigator.pop(context);
+  }
+
+  Widget _buildResultBody() {
+    final result = _result;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: _isEligibleResult
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.red.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _isEligibleResult ? Icons.check_circle : Icons.cancel,
+              size: 60,
+              color: _isEligibleResult ? Colors.green : Colors.red,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            _isEligibleResult ? 'You are Eligible!' : 'Not Eligible',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: _isEligibleResult ? Colors.green : Colors.red,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _isEligibleResult
+                ? 'You can proceed to submit a donation request.'
+                : 'You cannot donate blood at this time.',
+            style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+            textAlign: TextAlign.center,
+          ),
+          if (result != null) ...[
+            const SizedBox(height: 24),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Eligibility Score',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${result.score}/100',
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: result.score >= 70 ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: result.score / 100,
+                      minHeight: 8,
+                      backgroundColor: Colors.grey.shade200,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        result.score >= 70 ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (result.reasons.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.warning_amber, size: 20, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text(
+                          'Reasons',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ...result.reasons.map(
+                      (reason) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '• ',
+                              style: TextStyle(color: Colors.red, fontSize: 14),
+                            ),
+                            Expanded(
+                              child: Text(
+                                reason,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.red.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
+            if (result.nextEligibleDate != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: Colors.blue.shade700,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'You may be eligible after ${_formatDate(result.nextEligibleDate)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _handleResultAction,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _isEligibleResult
+                    ? AppTheme.primaryColor
+                    : Colors.grey.shade600,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                _isEligibleResult ? 'Proceed to Request' : 'Go Back',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }
