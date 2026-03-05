@@ -6,35 +6,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:light/light.dart';
-import 'package:lifelink/core/services/storage/user_session_service.dart';
 import 'package:lifelink/feature/auth/presentation/pages/login_screen.dart';
 import 'package:lifelink/feature/auth/presentation/view_model/auth_view_model.dart';
-import 'package:lifelink/feature/blood_donation_request/domain/entities/blood_request_entity.dart';
 import 'package:lifelink/feature/blood_banks/presentation/pages/blood_bank_map_screen.dart';
-import 'package:lifelink/feature/blood_donation_request/presentation/view_model/blood_request_view_model.dart';
-import 'package:lifelink/feature/hospital/presentation/pages/hospital_requests_screen.dart';
+import 'package:lifelink/feature/home/presentation/pages/my_requests_screen.dart';
+import 'package:lifelink/feature/home/presentation/state/home_state.dart';
+import 'package:lifelink/feature/home/presentation/view_model/home_view_model.dart';
 import 'package:lifelink/feature/nearbyhospital/presentation/pages/nearbyhospital_screen.dart';
-import 'package:lifelink/feature/organ_donation_request/domain/entities/organ_request_entity.dart';
-import 'package:lifelink/feature/organ_donation_request/presentation/view_model/organ_request_view_model.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
-class _HomeNotificationItem {
-  final String id;
-  final String title;
-  final String message;
-  final String status;
-  final DateTime? timestamp;
-
-  const _HomeNotificationItem({
-    required this.id,
-    required this.title,
-    required this.message,
-    required this.status,
-    required this.timestamp,
-  });
-}
-
+/// Home screen - the main dashboard for the app
+/// Shows location, requests, blood banks, and nearby hospitals
+/// 
+/// This is a UI-only screen - all business logic (fetching requests, etc.)
+/// is handled by the HomeViewModel in the presentation layer.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -64,12 +50,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _luxValue = 0;
   double _appBrightness = 0.6;
 
+  /// Initialize the screen and load initial data
+  /// This runs when the screen first opens
   @override
   void initState() {
     super.initState();
     _loadCurrentLocation();
     _startShakeSensor();
     _startLightSensor();
+    ref.read(homeViewModelProvider.notifier).loadRequests();
   }
 
   void _openNearbyHospitals() {
@@ -79,26 +68,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _openHospitalSection() {
-    final role = ref.read(authViewModelProvider).authEntity?.role ?? 'donor';
-
-    if (role == 'hospital') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const HospitalRequestsScreen()),
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Hospital section is for hospital accounts. Use Nearby hospital to find hospitals near you.',
-        ),
-      ),
+  void _openMyRequests() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MyRequestsScreen()),
     );
   }
 
+  /// Helper method to convert status codes to display colors
+  /// Used in notifications to show different colors for different statuses
+  /// Example: 'approved' → green, 'rejected' → red
   Color _statusColor(String status) {
     switch (status) {
       case 'approved':
@@ -110,77 +89,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  /// Helper method to convert status codes to display text
+  /// Example: 'approved' → 'Approved', 'rejected' → 'Rejected'
+  /// This helps make the notification messages easier to read
   String _statusLabel(String status) {
     if (status == 'approved') return 'Approved';
     if (status == 'rejected') return 'Rejected';
     return status;
   }
 
-  Future<List<_HomeNotificationItem>> _loadRequestNotifications() async {
-    final authUserId = ref.read(authViewModelProvider).authEntity?.authId;
-    final sessionUserId = ref.read(userSessionServiceProvider).getUserId();
-    final userId = authUserId ?? sessionUserId;
-
-    if (userId == null || userId.isEmpty) {
-      return [];
-    }
-
-    await ref
-        .read(bloodRequestViewModelProvider.notifier)
-        .getAllRequests(requestedBy: userId);
-
-    await ref
-        .read(organRequestViewModelProvider.notifier)
-        .getAllRequests(requestedBy: userId);
-
-    final bloodRequests = ref.read(bloodRequestViewModelProvider).requests;
-    final organRequests = ref.read(organRequestViewModelProvider).requests;
-
-    final List<_HomeNotificationItem> items = [];
-
-    for (final BloodRequestEntity request in bloodRequests) {
-      if (request.status == 'approved' || request.status == 'rejected') {
-        items.add(
-          _HomeNotificationItem(
-            id: 'blood-${request.id ?? request.createdAt.toString()}',
-            title: 'Blood request ${_statusLabel(request.status)}',
-            message:
-                '${request.hospitalName} ${request.status} your blood request for ${request.bloodType}',
-            status: request.status,
-            timestamp: request.updatedAt ?? request.createdAt,
+  /// Build the "My Requests" card - simple static card with icon and text
+  /// This card is clickable and opens the full requests list when tapped
+  /// It follows the same pattern as "Blood Banks" and "Nearby Hospital" cards
+  Widget _buildMyRequestsCard(BuildContext context) {
+    return GestureDetector(
+      onTap: _openMyRequests,
+      child: card(
+        child: SizedBox(
+          height: 175,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/myrequest.jpg',
+                width: 52,
+                height: 52,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "My requests",
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
           ),
-        );
-      }
-    }
-
-    for (final OrganRequestEntity request in organRequests) {
-      if (request.status == 'approved' || request.status == 'rejected') {
-        items.add(
-          _HomeNotificationItem(
-            id: 'organ-${request.id ?? request.createdAt.toString()}',
-            title: 'Organ request ${_statusLabel(request.status)}',
-            message:
-                '${request.hospitalName} ${request.status} your organ request',
-            status: request.status,
-            timestamp: request.updatedAt ?? request.createdAt,
-          ),
-        );
-      }
-    }
-
-    items.sort((a, b) {
-      final aTime = a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bTime = b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return bTime.compareTo(aTime);
-    });
-
-    return items;
+        ),
+      ),
+    );
   }
 
+  /// Open notifications bottom sheet
+  /// This shows all approved/rejected notifications to the user
+  /// When the sheet opens, it automatically loads the latest notifications
   Future<void> _openNotifications() async {
-    final notifications = await _loadRequestNotifications();
+    // Reload notifications from the API first
+    await ref.read(homeViewModelProvider.notifier).loadRequests();
+
+    final homeState = ref.read(homeViewModelProvider);
+    final notifications = homeState.notifications;
 
     if (!mounted) return;
+
+    if (homeState.status == HomeStatus.error &&
+        homeState.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(homeState.errorMessage!)),
+      );
+    }
 
     showModalBottomSheet(
       context: context,
@@ -281,6 +245,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         defaultTargetPlatform == TargetPlatform.iOS;
   }
 
+  /// Load user's current location and display as a place name
+  /// Shows user's city/area at the top of the screen
+  /// Handles permission requests and errors gracefully
   Future<void> _loadCurrentLocation() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -384,6 +351,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  /// Start listening to device shake gestures
+  /// When user shakes phone hard, they get logged out (safety feature)
+  /// Prevents accidental data exposure if app is left open
   void _startShakeSensor() {
     if (!_supportsSensorPlugins) return;
 
@@ -403,6 +373,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  /// Handle shake gesture to logout user
+  /// Has a 5-second cooldown to prevent accidental multiple logouts
+  /// Shows message to user before logging out
   Future<void> _handleShakeLogout() async {
     if (_isLoggingOutByShake) return;
 
@@ -430,6 +403,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  /// Start listening to device's light sensor
+  /// Automatically adjusts screen brightness based on ambient light
+  /// Example: Dimmer in dark rooms, brighter in sunlight
+  /// Improves user experience and reduces eye strain
   void _startLightSensor() {
     if (!_supportsSensorPlugins) {
       if (!mounted) return;
@@ -490,6 +467,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Build the main UI with AppBar and scrollable body
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 80,
@@ -498,12 +476,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: Center(
           child: Row(
             children: [
+              // LifeLink logo
               Image.asset(
                 'assets/images/LifeLink-removebg-preview.png',
                 width: 30,
                 height: 30,
               ),
               const SizedBox(width: 10),
+              // App name
               Text(
                 "LifeLink",
                 style: Theme.of(context).appBarTheme.titleTextStyle,
@@ -512,6 +492,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         actions: [
+          // Notification bell icon - tap to see notification updates
           IconButton(
             onPressed: _openNotifications,
             tooltip: 'Notifications',
@@ -528,6 +509,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: SizedBox.expand(
           child: LayoutBuilder(
             builder: (context, constraints) {
+              // Responsive design: max width 900 on tablets, full width on phones
               final maxContentWidth = constraints.maxWidth > 900
                   ? 900.0
                   : constraints.maxWidth;
@@ -542,7 +524,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                          Row(
+                        // 1. Location display with icon
+                        Row(
                             children: [
                               Image.asset(
                                 'assets/icons/location.png',
@@ -565,6 +548,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ],
                           ),
                           const SizedBox(height: 14),
+                          // 2. "Measure of Life" - Promotional card showing life-saving impact
                           card(
                             child: SizedBox(
                               height: 190,
@@ -583,6 +567,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                           const SizedBox(height: 18),
+                          // 3. "Nearby Hospital" card - Shows hospitals within 25km
                           GestureDetector(
                             onTap: _openNearbyHospitals,
                             child: card(
@@ -612,8 +597,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                           const SizedBox(height: 18),
+                          // 4. Bottom row: Two equally-sized cards side by side
                           Row(
                             children: [
+                              // Left side: Blood Banks card
                               Expanded(
                                 child: GestureDetector(
                                   onTap: () {
@@ -651,33 +638,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                               ),
                               const SizedBox(width: 14),
+                              // Right side: My Requests card
                               Expanded(
-                                child: GestureDetector(
-                                  onTap: _openHospitalSection,
-                                  child: card(
-                                    child: SizedBox(
-                                      height: 175,
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Image.asset(
-                                            'assets/images/hospital.png',
-                                            width: 52,
-                                            height: 52,
-                                          ),
-                                          const SizedBox(height: 10),
-                                          Text(
-                                            "Hospital",
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.titleMedium,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                                child: _buildMyRequestsCard(context),
                               ),
                             ],
                           ),
@@ -693,6 +656,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  /// Helper widget to create a consistent card style across the app
+  /// All cards use this widget for uniform shadow, padding, and rounded corners
+  /// Makes it easy to change card styling in one place
   Widget card({required Widget child}) {
     return Container(
       width: double.infinity,

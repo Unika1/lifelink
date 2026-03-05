@@ -31,31 +31,59 @@ class BloodRequestRepository implements IBloodRequestRepository {
     String? status,
   }) async {
     try {
+      debugPrint('[REPO] Fetching blood requests...');
+      debugPrint('  - requestedBy: $requestedBy');
+      debugPrint('  - hospitalId: $hospitalId');
+      debugPrint('  - hospitalName: $hospitalName');
+      
       final models = await _remoteDataSource.getAllRequests(
         hospitalId: hospitalId,
         hospitalName: hospitalName,
         requestedBy: requestedBy,
         status: status,
+      ).timeout(
+        const Duration(seconds: 20),
+        onTimeout: () {
+          debugPrint('[REPO] Blood request API timeout after 20s');
+          throw DioException(
+            requestOptions: RequestOptions(path: '/blood-requests'),
+            type: DioExceptionType.connectionTimeout,
+            message: 'Connection timeout - backend may be down',
+          );
+        },
       );
+      
       final entities = models.map((model) => model.toEntity()).toList();
+      debugPrint('[REPO] Blood requests fetched: ${entities.length}');
       return Right(entities);
     } on DioException catch (e) {
-      debugPrint('=== BLOOD REQUEST API ERROR ===');
-      debugPrint('Type: ${e.type}');
-      debugPrint('Message: ${e.message}');
-      debugPrint('Status: ${e.response?.statusCode}');
-      debugPrint('Response: ${e.response?.data}');
+      debugPrint('[REPO] BLOOD REQUEST API ERROR');
+      debugPrint('  Type: ${e.type}');
+      debugPrint('  Message: ${e.message}');
+      debugPrint('  Status: ${e.response?.statusCode}');
+      debugPrint('  Response: ${e.response?.data}');
+      
+      String errorMessage;
+      if (e.type == DioExceptionType.connectionTimeout) {
+        errorMessage = 'Connection timeout. Check if backend is running at ${e.requestOptions.baseUrl}';
+      } else if (e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = 'Server took too long to respond';
+      } else if (e.type == DioExceptionType.connectionError) {
+        errorMessage = 'Cannot connect to server. Check network or backend';
+      } else {
+        errorMessage = e.response?.data['message']?.toString() ?? 'Failed to load requests';
+      }
+      
       return Left(
         ApiFailure(
-          message: e.response?.data['message']?.toString() ??
-              'Failed to load requests',
+          message: errorMessage,
           statusCode: e.response?.statusCode,
         ),
       );
     } catch (e) {
-      debugPrint('=== BLOOD REQUEST UNEXPECTED ERROR ===');
-      debugPrint('Error: $e');
-      return Left(ApiFailure(message: e.toString()));
+      debugPrint('[REPO] BLOOD REQUEST UNEXPECTED ERROR');
+      debugPrint('  Error: $e');
+      return Left(ApiFailure(message: 'Unexpected error: $e'));
     }
   }
 

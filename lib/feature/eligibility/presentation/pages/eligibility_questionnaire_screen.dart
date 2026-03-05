@@ -230,8 +230,8 @@ class _EligibilityQuestionnaireScreenState
                           if (val == null || val.isEmpty)
                             return 'Weight is required';
                           final weight = double.tryParse(val);
-                          if (weight == null || weight < 40) {
-                            return 'Enter valid weight (minimum 40 kg)';
+                          if (weight == null || weight < 40 || weight > 100) {
+                            return 'Weight must be between 40-100 kg';
                           }
                           return null;
                         },

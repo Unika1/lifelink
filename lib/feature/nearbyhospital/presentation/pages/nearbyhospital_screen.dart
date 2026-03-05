@@ -25,12 +25,12 @@ class _NearbyHospitalPageState extends ConsumerState<NearbyHospitalPage> {
   String? _locationError;
 
   static const LatLng _defaultLocation = LatLng(27.7172, 85.3240);
+  static const double _nearbyRadiusKm = 25;
 
   @override
   void initState() {
     super.initState();
     _initializeLocation();
-    ref.read(hospitalViewModelProvider.notifier).getAllHospitals();
   }
 
   Future<void> _initializeLocation() async {
@@ -41,6 +41,7 @@ class _NearbyHospitalPageState extends ConsumerState<NearbyHospitalPage> {
           _isLoadingLocation = false;
           _locationError = 'Location services are disabled';
         });
+        await ref.read(hospitalViewModelProvider.notifier).getAllHospitals();
         return;
       }
 
@@ -52,6 +53,7 @@ class _NearbyHospitalPageState extends ConsumerState<NearbyHospitalPage> {
             _isLoadingLocation = false;
             _locationError = 'Location permission denied';
           });
+          await ref.read(hospitalViewModelProvider.notifier).getAllHospitals();
           return;
         }
       }
@@ -61,6 +63,7 @@ class _NearbyHospitalPageState extends ConsumerState<NearbyHospitalPage> {
           _isLoadingLocation = false;
           _locationError = 'Location permission permanently denied';
         });
+        await ref.read(hospitalViewModelProvider.notifier).getAllHospitals();
         return;
       }
 
@@ -77,11 +80,14 @@ class _NearbyHospitalPageState extends ConsumerState<NearbyHospitalPage> {
       });
 
       _mapController.move(LatLng(position.latitude, position.longitude), 14);
-    } catch (_) {
+      await ref.read(hospitalViewModelProvider.notifier).getAllHospitals();
+    } catch (e) {
       setState(() {
         _isLoadingLocation = false;
         _locationError = 'Could not get location';
       });
+
+      await ref.read(hospitalViewModelProvider.notifier).getAllHospitals();
     }
   }
 
@@ -124,6 +130,39 @@ class _NearbyHospitalPageState extends ConsumerState<NearbyHospitalPage> {
     });
 
     return [...sortable, ...noLocation];
+  }
+
+  List<HospitalEntity> _filterNearbyHospitals(List<HospitalEntity> hospitals) {
+    if (_currentPosition == null) {
+      // If no location available, return all hospitals too
+      return hospitals;
+    }
+
+    final maxDistanceMeters = _nearbyRadiusKm * 1000;
+    final nearby = <HospitalEntity>[];
+    final noLocation = <HospitalEntity>[];
+
+    for (final hospital in hospitals) {
+      if (hospital.location == null) {
+        noLocation.add(hospital);
+      } else {
+        final distanceInMeters = Geolocator.distanceBetween(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+          hospital.location!.latitude,
+          hospital.location!.longitude,
+        );
+
+        if (distanceInMeters <= maxDistanceMeters) {
+          nearby.add(hospital);
+        } else {
+          noLocation.add(hospital);
+        }
+      }
+    }
+
+    // Return nearby hospitals first, then others
+    return [...nearby, ...noLocation];
   }
 
   List<Marker> _buildMarkers(List<HospitalEntity> hospitals) {
@@ -290,7 +329,9 @@ class _NearbyHospitalPageState extends ConsumerState<NearbyHospitalPage> {
   @override
   Widget build(BuildContext context) {
     final hospitalState = ref.watch(hospitalViewModelProvider);
-    final hospitals = _sortByDistance(hospitalState.hospitals);
+    final hospitals = _sortByDistance(
+      _filterNearbyHospitals(hospitalState.hospitals),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -321,7 +362,7 @@ class _NearbyHospitalPageState extends ConsumerState<NearbyHospitalPage> {
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.unika.lifelink',
                     ),
-                    MarkerLayer(markers: _buildMarkers(hospitalState.hospitals)),
+                    MarkerLayer(markers: _buildMarkers(hospitals)),
                   ],
                 ),
                 if (_isLoadingLocation) _buildLocationLoadingOverlay(),
@@ -359,113 +400,154 @@ class _NearbyHospitalPageState extends ConsumerState<NearbyHospitalPage> {
                 ? const Center(
                     child: CircularProgressIndicator(color: AppTheme.primaryColor),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: hospitals.length,
-                    itemBuilder: (context, index) {
-                      final hospital = hospitals[index];
-                      final distance = hospital.location != null
-                          ? _calculateDistance(hospital.location!)
-                          : null;
-
-                      return GestureDetector(
-                        onTap: () => _showHospitalBottomSheet(hospital),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
+                : hospitals.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.local_hospital,
+                              size: 64,
+                              color: Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No hospitals found',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade600,
                               ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: hospital.imageUrl != null &&
-                                        hospital.imageUrl!.isNotEmpty
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(10),
-                                        child: Image.network(
-                                          ApiEndpoints.fullImageUrl(hospital.imageUrl!),
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => const Icon(
-                                            Icons.local_hospital,
-                                            color: AppTheme.primaryColor,
-                                            size: 24,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Unable to fetch hospital data. Please refresh.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton.icon(
+                              onPressed: _initializeLocation,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Refresh'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryColor,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              itemCount: hospitals.length,
+                              itemBuilder: (context, index) {
+                                final hospital = hospitals[index];
+                                final distance = hospital.location != null
+                                    ? _calculateDistance(hospital.location!)
+                                    : null;
+
+                                return GestureDetector(
+                                  onTap: () => _showHospitalBottomSheet(hospital),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.04),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: hospital.imageUrl != null &&
+                                                  hospital.imageUrl!.isNotEmpty
+                                              ? ClipRRect(
+                                                  borderRadius: BorderRadius.circular(10),
+                                                  child: Image.network(
+                                                    ApiEndpoints.fullImageUrl(hospital.imageUrl!),
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (_, __, ___) => const Icon(
+                                                      Icons.local_hospital,
+                                                      color: AppTheme.primaryColor,
+                                                      size: 24,
+                                                    ),
+                                                  ),
+                                                )
+                                              : const Icon(
+                                                  Icons.local_hospital,
+                                                  color: AppTheme.primaryColor,
+                                                  size: 24,
+                                                ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                hospital.name,
+                                                style: const TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppTheme.textColor,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                '${hospital.address.city}, ${hospital.address.state}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                      )
-                                    : const Icon(
-                                        Icons.local_hospital,
-                                        color: AppTheme.primaryColor,
-                                        size: 24,
-                                      ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      hospital.name,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.textColor,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${hospital.address.city}, ${hospital.address.state}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (distance != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    distance,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.primaryColor,
+                                        if (distance != null)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              distance,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppTheme.primaryColor,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                                );
+                              },
+                            ),
           ),
         ],
       ),

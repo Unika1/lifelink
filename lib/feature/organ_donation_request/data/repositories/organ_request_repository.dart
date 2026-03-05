@@ -81,22 +81,58 @@ class OrganRequestRepository implements IOrganRequestRepository {
     String? status,
   }) async {
     try {
+      debugPrint('[REPO] Fetching organ requests...');
+      debugPrint('  - requestedBy: $requestedBy');
+      debugPrint('  - hospitalId: $hospitalId');
+      debugPrint('  - hospitalName: $hospitalName');
+      
       final results = await _remoteDataSource.getAllRequests(
         hospitalId: hospitalId,
         hospitalName: hospitalName,
         requestedBy: requestedBy,
         status: status,
+      ).timeout(
+        const Duration(seconds: 20),
+        onTimeout: () {
+          debugPrint('[REPO] Organ request API timeout after 20s');
+          throw DioException(
+            requestOptions: RequestOptions(path: '/organ-requests'),
+            type: DioExceptionType.connectionTimeout,
+            message: 'Connection timeout - backend may be down',
+          );
+        },
       );
-      return Right(results.map((model) => model.toEntity()).toList());
+      
+      final entities = results.map((model) => model.toEntity()).toList();
+      debugPrint('[REPO] Organ requests fetched: ${entities.length}');
+      return Right(entities);
     } on DioException catch (e) {
+      debugPrint('[REPO] ORGAN REQUEST API ERROR');
+      debugPrint('  Type: ${e.type}');
+      debugPrint('  Message: ${e.message}');
+      debugPrint('  Status: ${e.response?.statusCode}');
+      
+      String errorMessage;
+      if (e.type == DioExceptionType.connectionTimeout) {
+        errorMessage = 'Connection timeout. Check if backend is running';
+      } else if (e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = 'Server took too long to respond';
+      } else if (e.type == DioExceptionType.connectionError) {
+        errorMessage = 'Cannot connect to server. Check network or backend';
+      } else {
+        errorMessage = _extractDioMessage(e, 'Failed to fetch requests');
+      }
+      
       return Left(
         ApiFailure(
-          message: _extractDioMessage(e, 'Failed to fetch requests'),
+          message: errorMessage,
           statusCode: e.response?.statusCode,
         ),
       );
     } catch (e) {
-      return Left(ApiFailure(message: e.toString()));
+      debugPrint('[REPO] ORGAN REQUEST UNEXPECTED ERROR');
+      debugPrint('  Error: $e');
+      return Left(ApiFailure(message: 'Unexpected error: $e'));
     }
   }
 

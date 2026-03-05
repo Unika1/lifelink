@@ -42,8 +42,8 @@ class ApiEndpoints {
     }
   }
 
-  static const Duration connectionTimeout = Duration(seconds: 60);
-  static const Duration receiveTimeout = Duration(seconds: 60);
+  static const Duration connectionTimeout = Duration(seconds: 20);
+  static const Duration receiveTimeout = Duration(seconds: 20);
 
   // ============ Auth ============
   static const String register = '/auth/register';
