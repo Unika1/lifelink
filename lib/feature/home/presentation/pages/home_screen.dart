@@ -22,7 +22,14 @@ import 'package:sensors_plus/sensors_plus.dart';
 /// This is a UI-only screen - all business logic (fetching requests, etc.)
 /// is handled by the HomeViewModel in the presentation layer.
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    this.enableInitialRequestLoad = true,
+  });
+
+  /// Allows widget tests to render HomeScreen without bootstrapping
+  /// the full provider graph used by loadRequests().
+  final bool enableInitialRequestLoad;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -48,7 +55,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   String _lightStatus = 'Unknown';
   int _luxValue = 0;
-  double _appBrightness = 0.6;
+  double _appBrightness = 0.4;
 
   /// Initialize the screen and load initial data
   /// This runs when the screen first opens
@@ -58,7 +65,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _loadCurrentLocation();
     _startShakeSensor();
     _startLightSensor();
-    ref.read(homeViewModelProvider.notifier).loadRequests();
+
+    // Defer provider update until after first frame.
+    if (widget.enableInitialRequestLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(homeViewModelProvider.notifier).loadRequests();
+      });
+    }
   }
 
   void _openNearbyHospitals() {

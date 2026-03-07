@@ -22,10 +22,23 @@ class HiveService {
   //open boxes
   Future<void>openBoxes()async{
     _registerAdapter();
-    if (!Hive.isBoxOpen(HiveTableConstant.authTable)) {
+    try {
+      if (!Hive.isBoxOpen(HiveTableConstant.authTable)) {
+        await Hive.openBox<AuthHiveModel>(HiveTableConstant.authTable);
+      }
+    } catch (e) {
+      // Box corrupted, clear it
+      await Hive.deleteBoxFromDisk(HiveTableConstant.authTable);
       await Hive.openBox<AuthHiveModel>(HiveTableConstant.authTable);
     }
-    if (!Hive.isBoxOpen(HiveTableConstant.profileTable)) {
+    
+    try {
+      if (!Hive.isBoxOpen(HiveTableConstant.profileTable)) {
+        await Hive.openBox<ProfileHiveModel>(HiveTableConstant.profileTable);
+      }
+    } catch (e) {
+      // Box corrupted, clear it
+      await Hive.deleteBoxFromDisk(HiveTableConstant.profileTable);
       await Hive.openBox<ProfileHiveModel>(HiveTableConstant.profileTable);
     }
   }

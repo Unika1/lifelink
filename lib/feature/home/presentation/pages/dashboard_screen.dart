@@ -4,19 +4,30 @@ import 'package:lifelink/feature/profile/presentation/pages/profile_screen.dart'
 import 'package:lifelink/feature/home/presentation/pages/request_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({
+    super.key,
+    this.enableInitialHomeRequestLoad = true,
+  });
+
+  final bool enableInitialHomeRequestLoad;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreen();
 }
 
 class _DashboardScreen extends State<DashboardScreen> {
-  int _selectedIndex=0;
-  List<Widget>lstBottomScreen=[
-    const HomeScreen(),
-    const RequestScreen(),
-    const ProfileScreen(),
-  ];
+  int _selectedIndex = 0;
+  late final List<Widget> lstBottomScreen;
+
+  @override
+  void initState() {
+    super.initState();
+    lstBottomScreen = [
+      HomeScreen(enableInitialRequestLoad: widget.enableInitialHomeRequestLoad),
+      const RequestScreen(),
+      const ProfileScreen(),
+    ];
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -8,8 +8,13 @@ import 'package:lifelink/feature/blood_donation_request/data/datasources/blood_r
 import 'package:lifelink/feature/blood_donation_request/data/models/blood_request_api_model.dart';
 import 'package:lifelink/feature/blood_donation_request/data/repositories/blood_request_repository.dart';
 
+//  flutter test --coverage
+//  flutter pub run test_cov_console
+
 class MockBloodRequestRemoteDataSource extends Mock
     implements IBloodRequestRemoteDataSource {}
+
+class _FakeBloodRequestApiModel extends Fake implements BloodRequestApiModel {}
 
 void main() {
   late MockBloodRequestRemoteDataSource mockRemoteDataSource;
@@ -25,6 +30,10 @@ void main() {
     status: 'pending',
     requestedBy: 'u-1',
   );
+
+  setUpAll(() {
+    registerFallbackValue(_FakeBloodRequestApiModel());
+  });
 
   setUp(() {
     mockRemoteDataSource = MockBloodRequestRemoteDataSource();

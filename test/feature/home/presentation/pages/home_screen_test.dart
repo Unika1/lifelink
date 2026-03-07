@@ -7,7 +7,7 @@ void main() {
   testWidgets('renders home screen shell', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
+        child: MaterialApp(home: HomeScreen(enableInitialRequestLoad: false)),
       ),
     );
 
@@ -18,7 +18,7 @@ void main() {
   testWidgets('renders in a ProviderScope', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
+        child: MaterialApp(home: HomeScreen(enableInitialRequestLoad: false)),
       ),
     );
 
@@ -28,7 +28,7 @@ void main() {
   testWidgets('contains at least one scrollable', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
+        child: MaterialApp(home: HomeScreen(enableInitialRequestLoad: false)),
       ),
     );
 
@@ -38,7 +38,7 @@ void main() {
   testWidgets('stays stable after additional pump', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
+        child: MaterialApp(home: HomeScreen(enableInitialRequestLoad: false)),
       ),
     );
     await tester.pump(const Duration(milliseconds: 100));
@@ -49,7 +49,7 @@ void main() {
   testWidgets('shows text widgets', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
+        child: MaterialApp(home: HomeScreen(enableInitialRequestLoad: false)),
       ),
     );
 

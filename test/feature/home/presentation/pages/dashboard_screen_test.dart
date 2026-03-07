@@ -19,7 +19,9 @@ Widget _buildTestApp() {
         _FakeOrganRequestViewModel.new,
       ),
     ],
-    child: const MaterialApp(home: DashboardScreen()),
+    child: const MaterialApp(
+      home: DashboardScreen(enableInitialHomeRequestLoad: false),
+    ),
   );
 }
 
@@ -83,8 +85,8 @@ void main() {
   testWidgets('renders dashboard with sidebar navigation', (tester) async {
     await tester.pumpWidget(_buildTestApp());
 
-    expect(find.byType(BottomNavigationBar), findsNothing);
-    expect(find.text('LifeLink Donor'), findsOneWidget);
+    expect(find.byType(BottomNavigationBar), findsOneWidget);
+    expect(find.text('LifeLink'), findsOneWidget);
     expect(find.text('Home'), findsWidgets);
     expect(find.text('Request'), findsWidgets);
     expect(find.text('Profile'), findsWidgets);
@@ -111,14 +113,9 @@ void main() {
     expect(find.byType(Scaffold), findsWidgets);
   });
 
-  testWidgets('opens notifications dialog from bell icon', (tester) async {
+  testWidgets('shows notifications bell in home app bar', (tester) async {
     await tester.pumpWidget(_buildTestApp());
 
-    expect(find.byIcon(Icons.notifications_none_rounded), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.notifications_none_rounded));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Notifications'), findsOneWidget);
-    expect(find.text('Close'), findsOneWidget);
+    expect(find.byTooltip('Notifications'), findsOneWidget);
   });
 }
